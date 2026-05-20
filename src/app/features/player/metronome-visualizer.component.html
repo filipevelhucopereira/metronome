@@ -1,45 +1,45 @@
 <div class="visualizer-frame">
   <p class="sr-only">{{ liveLabel() }}</p>
+  <div class="visualizer-chip">{{ stateLabel() }}</div>
 
-  <svg viewBox="0 0 320 320" aria-hidden="true" class="visualizer-canvas">
-    <circle cx="160" cy="160" r="118" class="orbit"></circle>
+  <svg viewBox="0 0 120 120" aria-hidden="true" class="visualizer-canvas">
+    <circle cx="60" cy="60" r="44" class="orbit"></circle>
+    <circle
+      cx="60"
+      cy="60"
+      r="44"
+      class="orbit-progress"
+      transform="rotate(-90 60 60)"
+      stroke-dasharray="276.46"
+      [attr.stroke-dashoffset]="progressDashOffset()"
+    ></circle>
 
     @for (marker of laneMarkers(); track marker.index) {
       <circle
         [attr.cx]="marker.x"
         [attr.cy]="marker.y"
-        r="8"
+        r="4.5"
         class="lane-marker"
         [class.is-passed]="marker.isPassed"
         [class.is-current]="marker.isCurrent"
       ></circle>
     }
 
-    <g class="pendulum" [attr.transform]="pendulumTransform()">
-      <line x1="160" y1="160" x2="160" y2="64" class="pendulum-arm"></line>
-      <circle cx="160" cy="62" r="18" class="pendulum-head"></circle>
-    </g>
-
     <g [attr.transform]="pulseTransform()">
-      <circle cx="160" cy="160" r="48" class="pulse-halo" [attr.opacity]="haloOpacity()"></circle>
+      <circle cx="60" cy="60" r="27" class="pulse-halo" [attr.opacity]="haloOpacity()"></circle>
       <circle
-        cx="160"
-        cy="160"
-        r="30"
+        cx="60"
+        cy="60"
+        r="22"
         class="pulse-core"
         [class.is-bar]="snapshot().emphasis === 'bar'"
         [class.is-beat]="snapshot().emphasis === 'beat'"
       ></circle>
     </g>
 
-    <circle cx="160" cy="160" r="14" class="pivot"></circle>
+    <circle cx="60" cy="60" r="6" class="pivot"></circle>
 
-    <text x="160" y="174" class="beat-text">{{ snapshot().currentBeatInBar }}</text>
-    <text x="160" y="197" class="beat-caption">/{{ snapshot().beatsPerBar }}</text>
+    <text x="60" y="65" class="beat-text">{{ snapshot().currentBeatInBar }}</text>
+    <text x="60" y="81" class="beat-caption">/{{ snapshot().beatsPerBar }}</text>
   </svg>
-
-  <div class="visualizer-meta">
-    <p>{{ emphasisLabel() }}</p>
-    <p>Pulse {{ snapshot().currentPulseInBeat }} of {{ snapshot().pulsesPerBeat }}</p>
-  </div>
 </div>

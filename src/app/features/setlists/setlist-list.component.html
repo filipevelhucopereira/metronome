@@ -1,39 +1,96 @@
 <section class="page-header">
   <div>
     <p class="page-eyebrow">Setlists</p>
-    <h1>Build practice flows</h1>
-    <p class="page-copy">Organize songs into a run order, drag them into place, and advance manually from the player.</p>
-  </div>
-
-  <div class="page-actions">
-    <a routerLink="/" class="secondary-link">Back to player</a>
-    <a routerLink="/songs" class="secondary-link">Song library</a>
+    <h1>Practice flows</h1>
+    <p class="page-copy">Create, resume, and launch practice sequences from one mobile list.</p>
   </div>
 </section>
 
 <section class="setlist-layout">
   <article class="panel create-panel">
-    <h2>Create a setlist</h2>
+    <div class="create-panel__heading">
+      <div>
+        <p class="page-eyebrow">Create</p>
+        <h2>Create a setlist</h2>
+      </div>
+
+      <span class="create-tag">New</span>
+    </div>
+
     <div class="create-row">
       <input [formControl]="createControl" type="text" maxlength="64" placeholder="Weekend practice set" />
       <button type="button" class="primary-button" (click)="createSetlist()">Create</button>
     </div>
+
+    <p class="create-help">Create opens the new setlist in detail so songs can be added and ordered immediately.</p>
   </article>
 
   <article class="panel list-panel">
+    @if (activeSetlist(); as activeSet) {
+      <section class="resume-card">
+        <div class="resume-card__header">
+          <div>
+            <p class="page-eyebrow">Quick resume</p>
+            <h2>{{ activeSet.name }}</h2>
+            <p class="resume-card__meta">{{ activeSet.songIds.length }} songs queued for practice</p>
+          </div>
+
+          <span class="resume-badge">Active</span>
+        </div>
+
+        <div class="setlist-preview" [style.--preview-width]="previewWidth(activeSet.songIds.length)"></div>
+
+        <div class="card-actions">
+          <button type="button" class="primary-button" (click)="startSetlist(activeSet.id)">Play now</button>
+          <a [routerLink]="['/setlists', activeSet.id]" class="ghost-button">Edit order</a>
+        </div>
+      </section>
+    }
+
     @if (!setlists().length) {
       <div class="empty-state">
         <h2>No setlists yet</h2>
         <p>Create a setlist to start sequencing your songs.</p>
       </div>
     } @else {
+      <div class="filter-strip" aria-label="Setlist filters">
+        @for (filter of setlistFilters; track filter.value) {
+          <button
+            type="button"
+            class="filter-pill"
+            [class.is-selected]="selectedFilter() === filter.value"
+            [attr.aria-pressed]="selectedFilter() === filter.value"
+            (click)="setFilter(filter.value)"
+          >
+            {{ filter.label }}
+          </button>
+        }
+      </div>
+
+      @if (!filteredSetlists().length) {
+        <div class="empty-state">
+          <h2>No setlists in this view</h2>
+          <p>Switch filters to see the full library or start a new focused practice flow.</p>
+        </div>
+      } @else {
       <div class="setlist-list">
-        @for (setlist of setlists(); track setlist.id) {
+        @for (setlist of filteredSetlists(); track setlist.id) {
           <article class="setlist-card" [class.is-active]="currentSetlistId() === setlist.id">
-            <div>
-              <p class="page-eyebrow">{{ setlist.songIds.length }} songs</p>
-              <h2>{{ setlist.name }}</h2>
+            <div class="setlist-card__header">
+              <div>
+                <p class="page-eyebrow">{{ setlist.songIds.length }} songs</p>
+                <h2>{{ setlist.name }}</h2>
+                <p class="setlist-card__copy">
+                  {{ currentSetlistId() === setlist.id ? 'Ready to launch from the player.' : 'Open to update song order and saved practice flow.' }}
+                </p>
+              </div>
+
+              @if (currentSetlistId() === setlist.id) {
+                <span class="setlist-badge">Current</span>
+              }
             </div>
+
+            <div class="setlist-preview" [style.--preview-width]="previewWidth(setlist.songIds.length)"></div>
 
             <div class="card-actions">
               <button type="button" class="ghost-button" (click)="startSetlist(setlist.id)">Play</button>
@@ -43,6 +100,7 @@
           </article>
         }
       </div>
+      }
     }
   </article>
 </section>

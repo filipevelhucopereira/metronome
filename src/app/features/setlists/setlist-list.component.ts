@@ -6,6 +6,8 @@ import { MetronomeService } from '../../core/metronome/metronome.service';
 import { LibraryStorageService } from '../../shared/storage/library-storage.service';
 import { type Setlist } from '../../shared/models/setlist.model';
 
+type SetlistFilterValue = 'all' | 'active' | 'recent';
+
 @Component({
   selector: 'app-setlist-list',
   imports: [ReactiveFormsModule, RouterLink],
@@ -19,7 +21,29 @@ export class SetlistListComponent {
   private readonly router = inject(Router);
 
   protected readonly setlists = signal<Setlist[]>([]);
+  protected readonly setlistFilters = [
+    { value: 'all', label: 'All' },
+    { value: 'active', label: 'Active' },
+    { value: 'recent', label: 'Recent' },
+  ] as const;
+  protected readonly selectedFilter = signal<SetlistFilterValue>('all');
   protected readonly currentSetlistId = computed(() => this.metronome.activeSetlistId());
+  protected readonly activeSetlist = computed(() => this.setlists().find((setlist) => setlist.id === this.currentSetlistId()) ?? null);
+  protected readonly filteredSetlists = computed(() => {
+    const filter = this.selectedFilter();
+    const setlists = this.setlists();
+
+    if (filter === 'active') {
+      const activeId = this.currentSetlistId();
+      return activeId ? setlists.filter((setlist) => setlist.id === activeId) : [];
+    }
+
+    if (filter === 'recent') {
+      return [...setlists].sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+    }
+
+    return setlists;
+  });
   protected readonly createControl = new FormControl('', {
     nonNullable: true,
     validators: [Validators.required, Validators.maxLength(64)],
@@ -53,6 +77,14 @@ export class SetlistListComponent {
   protected async deleteSetlist(setlistId: string): Promise<void> {
     await this.storage.deleteSetlist(setlistId);
     await this.refresh();
+  }
+
+  protected setFilter(value: SetlistFilterValue): void {
+    this.selectedFilter.set(value);
+  }
+
+  protected previewWidth(songCount: number): string {
+    return `${Math.min(82, 18 + (songCount * 9))}%`;
   }
 
   private async refresh(): Promise<void> {

@@ -1,97 +1,106 @@
 <section class="player-hero">
   <div>
-    <p class="eyebrow">Precision Web Audio Engine</p>
-    <h1>Metronome</h1>
-    <p class="supporting-copy">
-      Lookahead scheduling, immediate transport controls, and a visual pulse designed to stay aligned with the click.
-    </p>
-  </div>
-
-  <div class="hero-links">
-    <a routerLink="/songs" class="secondary-link">Song library</a>
-    <a routerLink="/setlists" class="secondary-link">Setlists</a>
+    <p class="page-eyebrow">Player</p>
+    <h1>Focus tempo</h1>
+    <p class="supporting-copy">Tap tempo, sync, and quick changes stay in thumb range.</p>
   </div>
 </section>
 
 <section class="player-layout">
-  <article class="panel transport-panel">
-    <div class="status-row">
+  <div class="transport-stack">
+    <section class="session-card">
       <div>
         <p class="section-label">Current preset</p>
         <h2>{{ currentSessionLabel() }}</h2>
+        <p class="session-card__meta">{{ metronome.tempo() }} BPM · {{ meterCaption() }}</p>
       </div>
 
-      <div class="session-pill">
-        @if (metronome.activeSetlistName()) {
-          <span>{{ metronome.activeSetlistName() }}</span>
-        } @else {
-          <span>Free play</span>
+      <div class="session-card__badges">
+        @if (currentSetlistBadge(); as setlistBadge) {
+          <span class="session-pill session-pill--context" [attr.title]="metronome.activeSetlistName()">{{ setlistBadge }}</span>
+        }
+
+        <span class="session-pill" [class.session-pill--accent]="metronome.isPlaying()">
+          {{ metronome.isPlaying() ? 'Live' : 'Ready' }}
+        </span>
+      </div>
+    </section>
+
+    <section class="tempo-stage">
+      <div class="tempo-stage__top">
+        <div class="tempo-display">
+          <p class="section-label">Tempo</p>
+          <div class="tempo-value">
+            <span>{{ metronome.tempo() }}</span>
+            <small>BPM</small>
+          </div>
+          <p class="tempo-caption">{{ beatCaption() }}<span class="tempo-caption__dot"></span>{{ pulseCaption() }}</p>
+        </div>
+
+        <app-metronome-visualizer class="tempo-stage__visualizer" [snapshot]="metronome.visualizer()" />
+      </div>
+
+      <div class="beat-strip" aria-label="Current beat position">
+        @for (beat of beatMarkers(); track beat) {
+          <span class="beat-chip" [class.is-active]="metronome.currentBeatInBar() === beat">{{ beat }}</span>
         }
       </div>
-    </div>
 
-    <app-metronome-visualizer [snapshot]="metronome.visualizer()" />
+      <label class="tempo-range" for="tempo-slider">
+        <span>30</span>
+        <input
+          id="tempo-slider"
+          type="range"
+          min="30"
+          max="240"
+          [value]="metronome.tempo()"
+          (input)="updateTempo($event)"
+          aria-label="Tempo in beats per minute"
+        />
+        <span>240</span>
+      </label>
 
-    <div class="tempo-display">
-      <p class="section-label">Tempo</p>
-      <div class="tempo-value">
-        <span>{{ metronome.tempo() }}</span>
-        <small>BPM</small>
-      </div>
-      <p class="tempo-caption">{{ meterCaption() }}</p>
-    </div>
-
-    <label class="slider-field" for="tempo-slider">
-      <span>Adjust tempo</span>
-      <input
-        id="tempo-slider"
-        type="range"
-        min="30"
-        max="240"
-        [value]="metronome.tempo()"
-        (input)="updateTempo($event)"
-        aria-label="Tempo in beats per minute"
-      />
-    </label>
-
-    <div class="tempo-buttons" aria-label="Tempo adjustments">
-      <button type="button" class="ghost-button" (click)="adjustTempo(-5)">-5</button>
-      <button type="button" class="ghost-button" (click)="adjustTempo(-1)">-1</button>
-      <button type="button" class="ghost-button" (click)="adjustTempo(1)">+1</button>
-      <button type="button" class="ghost-button" (click)="adjustTempo(5)">+5</button>
-    </div>
-
-    <div class="transport-buttons">
-      <button type="button" class="primary-button" (click)="togglePlayback()">
-        {{ metronome.isPlaying() ? 'Pause' : 'Play' }}
-      </button>
-      <button type="button" class="ghost-button" (click)="tapTempo()">Tap tempo</button>
-      <button
-        type="button"
-        class="ghost-button"
-        (click)="nextSong()"
-        [disabled]="!metronome.canAdvanceSetlist()"
-      >
-        Next song
-      </button>
-    </div>
-
-    @if (audioSupportMessage(); as supportMessage) {
-      <p class="audio-support-note" role="status" aria-live="polite">{{ supportMessage }}</p>
-    }
-  </article>
-
-  <article class="panel settings-panel">
-    <section class="control-group">
-      <div class="control-heading">
-        <div>
-          <p class="section-label">Meter</p>
-          <h2>{{ metronome.beatsPerBar() }}/4</h2>
-        </div>
-        <p>Accented downbeat plus evenly tracked bar count.</p>
+      <div class="tempo-buttons" aria-label="Tempo adjustments">
+        <button type="button" class="ghost-button" (click)="adjustTempo(-5)">-5</button>
+        <button type="button" class="ghost-button" (click)="adjustTempo(-1)">-1</button>
+        <button type="button" class="ghost-button" (click)="adjustTempo(1)">+1</button>
+        <button type="button" class="ghost-button" (click)="adjustTempo(5)">+5</button>
       </div>
 
-      <div class="segmented-grid">
+      <div class="transport-buttons">
+        <button type="button" class="primary-button" (click)="togglePlayback()">
+          {{ metronome.isPlaying() ? 'Pause' : 'Play' }}
+        </button>
+        <button type="button" class="ghost-button" (click)="tapTempo()">Tap</button>
+        <button
+          type="button"
+          class="ghost-button"
+          (click)="nextSong()"
+          [disabled]="!metronome.canAdvanceSetlist()"
+        >
+          Next
+        </button>
+      </div>
+
+      <div class="transport-meta" aria-label="Transport status summary">
+        <span>{{ lookaheadCaption() }}</span>
+        <span>{{ pulseCaption() }}</span>
+      </div>
+    </section>
+  </div>
+
+  <article class="panel settings-sheet">
+    <div class="settings-sheet__header">
+      <p class="page-eyebrow">Transport settings</p>
+      <p class="settings-sheet__summary">{{ meterCaption() }}</p>
+    </div>
+
+    <section class="settings-row">
+      <div class="settings-row__header">
+        <p class="section-label">Meter</p>
+      </div>
+
+      <div class="segmented-grid segmented-grid--meter">
         @for (beats of beatOptions; track beats) {
           <button
             type="button"
@@ -106,79 +115,53 @@
       </div>
     </section>
 
-    <section class="control-group">
-      <div class="control-heading">
-        <div>
-          <p class="section-label">Subdivision</p>
-          <h2>{{ metronome.pulsesPerBeat() }} pulses</h2>
-        </div>
-        <p>Quarter, eighth, triplet, or sixteenth pulse density.</p>
+    <section class="settings-row">
+      <div class="settings-row__header">
+        <p class="section-label">Subdivision</p>
       </div>
 
-      <div class="stacked-grid">
+      <div class="segmented-grid segmented-grid--subdivision">
         @for (option of subdivisionOptions; track option.value) {
           <button
             type="button"
-            class="selection-card"
+            class="segmented-button"
             [class.is-selected]="metronome.subdivision() === option.value"
             [attr.aria-pressed]="metronome.subdivision() === option.value"
             (click)="selectSubdivision(option.value)"
           >
-            <span>{{ option.label }}</span>
-            <small>{{ option.pulsesPerBeat }} per beat</small>
+            {{ option.shortLabel }}
           </button>
         }
       </div>
     </section>
 
-    <section class="control-group">
-      <div class="control-heading">
-        <div>
+    <div class="settings-footer">
+      <section class="settings-row settings-row--rhythm">
+        <div class="settings-row__header">
           <p class="section-label">Rhythm feel</p>
-          <h2>{{ metronome.rhythm() }}</h2>
         </div>
-        <p>Swing and compound adjust pulse spacing automatically.</p>
-      </div>
 
-      <div class="stacked-grid">
-        @for (option of rhythmOptions; track option.value) {
-          <button
-            type="button"
-            class="selection-card"
-            [class.is-selected]="metronome.rhythm() === option.value"
-            [attr.aria-pressed]="metronome.rhythm() === option.value"
-            (click)="selectRhythm(option.value)"
-          >
-            <span>{{ option.label }}</span>
-            <small>
-              @switch (option.value) {
-                @case ('swing') {
-                  Long-short eighth-note pulse.
-                }
-                @case ('compound') {
-                  Triplet-driven compound feel.
-                }
-                @default {
-                  Even pulse spacing across the bar.
-                }
-              }
-            </small>
-          </button>
-        }
-      </div>
-    </section>
+        <div class="segmented-grid segmented-grid--rhythm">
+          @for (option of rhythmOptions; track option.value) {
+            <button
+              type="button"
+              class="segmented-button"
+              [class.is-selected]="metronome.rhythm() === option.value"
+              [attr.aria-pressed]="metronome.rhythm() === option.value"
+              (click)="selectRhythm(option.value)"
+            >
+              {{ option.label }}
+            </button>
+          }
+        </div>
+      </section>
 
-    <section class="control-group">
-      <div class="control-heading">
-        <div>
+      <section class="volume-block">
+        <div class="volume-block__header">
           <p class="section-label">Volume</p>
-          <h2>{{ (metronome.volume() * 100).toFixed(0) }}%</h2>
+          <strong>{{ (metronome.volume() * 100).toFixed(0) }}%</strong>
         </div>
-        <p>Master gain for the synthesized click.</p>
-      </div>
 
-      <label class="slider-field" for="volume-slider">
-        <span>Adjust click volume</span>
         <input
           id="volume-slider"
           type="range"
@@ -189,24 +172,11 @@
           (input)="updateVolume($event)"
           aria-label="Metronome volume"
         />
-      </label>
-    </section>
-
-    <section class="status-card" aria-label="Current transport status">
-      <div>
-        <p class="section-label">Beat</p>
-        <strong>{{ metronome.currentBeatInBar() }} / {{ metronome.beatsPerBar() }}</strong>
-      </div>
-
-      <div>
-        <p class="section-label">Pulse</p>
-        <strong>{{ metronome.currentPulseInBeat() }} / {{ metronome.pulsesPerBeat() }}</strong>
-      </div>
-
-      <div>
-        <p class="section-label">State</p>
-        <strong>{{ metronome.isPlaying() ? 'Running' : 'Ready' }}</strong>
-      </div>
-    </section>
+      </section>
+    </div>
   </article>
 </section>
+
+@if (audioSupportMessage(); as supportMessage) {
+  <p class="audio-support-note" role="status" aria-live="polite">{{ supportMessage }}</p>
+}

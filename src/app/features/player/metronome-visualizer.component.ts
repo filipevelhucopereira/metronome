@@ -22,24 +22,28 @@ export class MetronomeVisualizerComponent {
 
       return {
         index: index + 1,
-        x: 160 + (Math.cos(angle) * 112),
-        y: 160 + (Math.sin(angle) * 112),
+        x: 60 + (Math.cos(angle) * 44),
+        y: 60 + (Math.sin(angle) * 44),
         isCurrent: index + 1 === snapshot.currentBeatInBar,
         isPassed: index + 1 < snapshot.currentBeatInBar,
       };
     });
   });
 
-  protected readonly pendulumTransform = computed(
-    () => `rotate(${(this.snapshot().pendulumOffset * 28).toFixed(2)} 160 160)`,
-  );
-
   protected readonly pulseTransform = computed(() => {
-    const scale = 1 + (this.snapshot().flashStrength * 0.16);
-    return `translate(160 160) scale(${scale.toFixed(3)}) translate(-160 -160)`;
+    const scale = 1 + (this.snapshot().flashStrength * 0.1);
+    return `translate(60 60) scale(${scale.toFixed(3)}) translate(-60 -60)`;
   });
 
-  protected readonly haloOpacity = computed(() => 0.2 + (this.snapshot().flashStrength * 0.6));
+  protected readonly haloOpacity = computed(() => 0.16 + (this.snapshot().flashStrength * 0.42));
+  protected readonly stateLabel = computed(() => this.snapshot().isPlaying ? 'Live' : 'Ready');
+  protected readonly progressDashOffset = computed(() => {
+    const snapshot = this.snapshot();
+    const progress = ((snapshot.currentBeatInBar - 1) + ((snapshot.currentPulseInBeat - 1) / snapshot.pulsesPerBeat)) / snapshot.beatsPerBar;
+    const circumference = 2 * Math.PI * 44;
+
+    return (circumference * (1 - progress)).toFixed(2);
+  });
 
   protected readonly emphasisLabel = computed(() => {
     switch (this.snapshot().emphasis) {

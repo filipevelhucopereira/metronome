@@ -3,35 +3,59 @@
     <div>
       <p class="page-eyebrow">Setlist Detail</p>
       <h1>{{ currentSetlist.name }}</h1>
-      <p class="page-copy">Drag songs into order, keep keyboard fallbacks, and launch the sequence from the player.</p>
+      <p class="page-copy">Rename, reorder, and load songs into the current sequence.</p>
     </div>
 
-    <div class="page-actions">
-      <a routerLink="/setlists" class="secondary-link">Back to setlists</a>
-      <button type="button" class="primary-button" (click)="playSetlist()">Play setlist</button>
-    </div>
+    <button type="button" class="primary-button page-header__action" (click)="playSetlist()">Play set</button>
   </section>
+
+  <div class="detail-status" aria-label="Current setlist status">
+    <span class="detail-status__pill" [class.is-active]="isActiveSetlist()">
+      {{ isActiveSetlist() ? 'Active setlist' : 'Ready' }}
+    </span>
+    <span class="detail-status__pill">{{ currentSetlist.songIds.length }} songs</span>
+    @if (isActiveSetlist()) {
+      <span class="detail-status__pill">Song {{ activeSetlistIndex() + 1 }} live</span>
+    }
+  </div>
 
   <section class="detail-layout">
     <article class="panel settings-panel">
+      <div class="settings-panel__heading">
+        <div>
+          <p class="page-eyebrow">Setlist settings</p>
+          <h2>Manage run order</h2>
+          <p class="page-copy">Rename, add songs, and keep touch and keyboard reorder fallbacks visible.</p>
+        </div>
+
+        <span class="detail-status__pill detail-status__pill--muted">Auto save off</span>
+      </div>
+
       <label class="field">
         <span>Setlist name</span>
         <input [formControl]="nameControl" type="text" maxlength="64" />
       </label>
 
-      <button type="button" class="ghost-button" (click)="saveName()">Save name</button>
+      <div class="settings-actions">
+        <button type="button" class="ghost-button" (click)="saveName()">Save name</button>
+        <button type="button" class="ghost-button" (click)="playSetlist()">Start from top</button>
+      </div>
 
-      <label class="field">
-        <span>Add song</span>
-        <select [formControl]="addSongControl">
-          <option value="">Choose a song</option>
-          @for (song of librarySongs(); track song.id) {
-            <option [value]="song.id">{{ song.name }} · {{ song.tempo }} BPM</option>
-          }
-        </select>
-      </label>
+      <div class="add-song-row">
+        <label class="field add-song-field">
+          <span>Add song</span>
+          <select [formControl]="addSongControl">
+            <option value="">Choose a song</option>
+            @for (song of librarySongs(); track song.id) {
+              <option [value]="song.id">{{ song.name }} · {{ song.tempo }} BPM</option>
+            }
+          </select>
+        </label>
 
-      <button type="button" class="ghost-button" (click)="addSong()" [disabled]="!addSongControl.value">Add song</button>
+        <button type="button" class="primary-button add-song-button" (click)="addSong()" [disabled]="!addSongControl.value">Add</button>
+      </div>
+
+      <p class="settings-note">Touch drag and button reordering stay available together.</p>
     </article>
 
     <article class="panel list-panel">
@@ -50,41 +74,61 @@
           (cdkDropListDropped)="dropSong($event)"
         >
           @for (entry of currentSetlist.entries; track entry.id) {
-            <article class="entry-card" cdkDrag>
-              <button
-                type="button"
-                class="drag-handle"
-                cdkDragHandle
-                [id]="'setlist-handle-' + entry.order"
-                [attr.aria-label]="'Drag to reorder ' + entry.song.name"
-              >
-                Drag
-              </button>
-
-              <div class="entry-copy">
-                <p class="page-eyebrow">{{ entry.order + 1 }}</p>
-                <h2>{{ entry.song.name }}</h2>
-                <p class="page-copy">{{ entry.song.tempo }} BPM · {{ entry.song.beatsPerBar }}/4 · {{ entry.song.rhythm }}</p>
+            <article class="entry-card" cdkDrag [class.is-current]="isCurrentEntry(entry)" [class.is-next]="isNextEntry(entry)">
+              <div class="entry-order" aria-hidden="true">
+                <span class="entry-order__label">Order</span>
+                <span class="entry-order__index">{{ entry.order + 1 }}</span>
               </div>
 
-              <div class="entry-actions">
-                <button
-                  type="button"
-                  class="ghost-button"
-                  (click)="moveSong(entry.order, entry.order - 1)"
-                  [disabled]="entry.order === 0"
-                >
-                  Move up
-                </button>
-                <button
-                  type="button"
-                  class="ghost-button"
-                  (click)="moveSong(entry.order, entry.order + 1)"
-                  [disabled]="entry.order === currentSetlist.entries.length - 1"
-                >
-                  Move down
-                </button>
-                <button type="button" class="ghost-button" (click)="removeSong(entry.order)">Remove</button>
+              <div class="entry-body">
+                <div class="entry-main">
+                  <div class="entry-copy">
+                    <h2>{{ entry.song.name }}</h2>
+                  </div>
+
+                  <div class="entry-flags">
+                    @if (isCurrentEntry(entry)) {
+                      <span class="entry-badge is-current">Live</span>
+                    } @else if (isNextEntry(entry)) {
+                      <span class="entry-badge">Next</span>
+                    }
+                  </div>
+                </div>
+
+                <div class="entry-meta">
+                  <span class="entry-meta__pill">{{ entry.song.tempo }} BPM</span>
+                  <span class="entry-meta__pill">{{ entry.song.beatsPerBar }}/4</span>
+                  <span class="entry-meta__pill">{{ entry.song.rhythm }}</span>
+                </div>
+
+                <div class="entry-actions">
+                  <button
+                    type="button"
+                    class="ghost-button entry-action entry-action--handle"
+                    cdkDragHandle
+                    [id]="'setlist-handle-' + entry.order"
+                    [attr.aria-label]="'Drag to reorder ' + entry.song.name"
+                  >
+                    Drag
+                  </button>
+                  <button
+                    type="button"
+                    class="ghost-button entry-action"
+                    (click)="moveSong(entry.order, entry.order - 1)"
+                    [disabled]="entry.order === 0"
+                  >
+                    Up
+                  </button>
+                  <button
+                    type="button"
+                    class="ghost-button entry-action"
+                    (click)="moveSong(entry.order, entry.order + 1)"
+                    [disabled]="entry.order === currentSetlist.entries.length - 1"
+                  >
+                    Down
+                  </button>
+                  <button type="button" class="ghost-button entry-action" (click)="removeSong(entry.order)">Remove</button>
+                </div>
               </div>
             </article>
           }

@@ -2,116 +2,149 @@
   display: block;
 }
 
-.page-header,
-.page-actions,
-.create-row,
-.card-actions {
+.page-header {
+  margin-bottom: 1rem;
+}
+
+.setlist-layout {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.create-panel,
+.list-panel {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+  align-content: start;
+}
+
+.create-panel__heading,
+.resume-card__header,
+.setlist-card__header {
   display: flex;
   justify-content: space-between;
   gap: 1rem;
   align-items: start;
 }
 
-.page-eyebrow {
-  margin: 0;
-  color: var(--accent-cyan);
-  font-size: 0.78rem;
+.create-row {
+  align-items: stretch;
+}
+
+.create-help,
+.resume-card__meta,
+.setlist-card__copy {
+  margin: 0.4rem 0 0;
+  color: var(--muted-text);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.create-tag,
+.resume-badge,
+.setlist-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.1rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-secondary);
+  font-family: var(--font-data);
+  font-size: 0.68rem;
   font-weight: 700;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
-.page-header h1,
-.setlist-card h2,
-.empty-state h2,
-.create-panel h2 {
-  margin: 0.35rem 0 0;
+.create-tag {
+  background: rgba(255, 170, 108, 0.16);
+  color: var(--accent-amber);
 }
 
-.page-copy,
-.empty-state p {
-  color: var(--muted-text);
+.resume-badge,
+.setlist-badge {
+  background: rgba(110, 222, 255, 0.14);
+  color: var(--accent-cyan);
 }
 
-.setlist-layout {
+.resume-card {
   display: grid;
-  gap: 1.25rem;
-  margin-top: 1.5rem;
-}
-
-.panel {
-  border-radius: 1.5rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: linear-gradient(160deg, rgba(7, 18, 33, 0.92), rgba(12, 28, 48, 0.86));
-  box-shadow: var(--panel-shadow);
-  padding: 1.25rem;
-}
-
-.create-row input {
-  flex: 1;
-  min-height: 3rem;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 1rem;
-  background: rgba(255, 255, 255, 0.04);
-  color: var(--text-primary);
-  padding: 0.75rem 0.9rem;
+  gap: 0.85rem;
+  padding: 1rem;
+  border-radius: 1.35rem;
+  border: 1px solid var(--border-strong);
+  background: linear-gradient(180deg, rgba(17, 34, 56, 0.96), rgba(12, 28, 48, 0.94));
 }
 
 .setlist-list {
   display: grid;
-  gap: 1rem;
+  gap: 0.75rem;
 }
 
 .setlist-card {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  align-items: center;
+  display: grid;
+  gap: 0.8rem;
   padding: 1rem;
   border-radius: 1.25rem;
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--surface-muted);
   border: 1px solid transparent;
 }
 
 .setlist-card.is-active {
-  border-color: rgba(94, 217, 255, 0.5);
+  border-color: var(--border-strong);
+  background: linear-gradient(180deg, rgba(18, 36, 59, 0.96), rgba(12, 28, 47, 0.94));
 }
 
-.ghost-button,
-.primary-button,
-.secondary-link {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 3rem;
-  padding: 0.75rem 1rem;
-  border-radius: 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.04);
-  color: var(--text-primary);
-  text-decoration: none;
+.setlist-preview {
+  position: relative;
+  height: 0.34rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(110, 222, 255, 0.12);
 }
 
-.primary-button {
-  background: linear-gradient(135deg, rgba(255, 154, 82, 0.95), rgba(255, 122, 94, 0.92));
-  border-color: transparent;
-  color: rgb(21, 16, 12);
-  font-weight: 800;
+.setlist-preview::before {
+  content: '';
+  display: block;
+  width: var(--preview-width, 48%);
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent-cyan), var(--accent-amber));
 }
 
-.empty-state {
-  display: grid;
-  gap: 0.75rem;
-  align-content: center;
-  min-height: 10rem;
+.card-actions {
+  flex-wrap: wrap;
+}
+
+.card-actions .ghost-button,
+.resume-card .ghost-button,
+.resume-card .primary-button {
+  min-height: 2.55rem;
+  padding: 0.65rem 0.85rem;
+  font-family: var(--font-data);
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+@media (min-width: 960px) {
+  .setlist-layout {
+    grid-template-columns: minmax(18rem, 0.9fr) minmax(0, 1.1fr);
+  }
 }
 
 @media (max-width: 720px) {
   .page-header,
   .page-actions,
   .create-row,
-  .setlist-card,
-  .card-actions {
+  .card-actions,
+  .create-panel__heading,
+  .resume-card__header,
+  .setlist-card__header {
     flex-direction: column;
     align-items: stretch;
   }

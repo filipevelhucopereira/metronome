@@ -1,7 +1,7 @@
 export const TEMPO_MIN = 30;
 export const TEMPO_MAX = 240;
 
-export const BEATS_PER_BAR_OPTIONS = [2, 3, 4, 5, 7] as const;
+export const BEATS_PER_BAR_OPTIONS = [1, 2, 3, 4, 5, 7] as const;
 
 export const SUBDIVISION_OPTIONS = [
   { value: 1, label: 'Quarter notes', shortLabel: 'Quarter', pulsesPerBeat: 1 },

@@ -1,5 +1,5 @@
 import { CdkDrag, CdkDragDrop, CdkDragHandle, CdkDropList } from '@angular/cdk/drag-drop';
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
@@ -25,6 +25,9 @@ export class SetlistDetailComponent {
   protected readonly setlist = signal<ResolvedSetlist | null>(null);
   protected readonly librarySongs = signal<Song[]>([]);
   protected readonly announcement = signal('');
+  protected readonly activeSetlistId = computed(() => this.metronome.activeSetlistId());
+  protected readonly activeSetlistIndex = computed(() => this.metronome.activeSetlistIndex());
+  protected readonly isActiveSetlist = computed(() => this.setlist()?.id === this.activeSetlistId());
 
   protected readonly nameControl = new FormControl('', {
     nonNullable: true,
@@ -105,6 +108,14 @@ export class SetlistDetailComponent {
 
     await this.metronome.startSetlist(setlist.id);
     await this.router.navigateByUrl('/');
+  }
+
+  protected isCurrentEntry(entry: ResolvedSetlistEntry): boolean {
+    return this.isActiveSetlist() && this.activeSetlistIndex() === entry.order;
+  }
+
+  protected isNextEntry(entry: ResolvedSetlistEntry): boolean {
+    return this.isActiveSetlist() && this.activeSetlistIndex() + 1 === entry.order;
   }
 
   private announceMove(position: number): void {

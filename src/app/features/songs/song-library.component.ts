@@ -1,14 +1,16 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
+import { Router } from '@angular/router';
 
 import { MetronomeService } from '../../core/metronome/metronome.service';
 import { LibraryStorageService } from '../../shared/storage/library-storage.service';
-import { type Song, type SongDraft } from '../../shared/models/song.model';
+import { type RhythmOption, type Song, type SongDraft } from '../../shared/models/song.model';
 import { SongEditorComponent } from './song-editor.component';
+
+type SongFilterValue = 'all' | RhythmOption;
 
 @Component({
   selector: 'app-song-library',
-  imports: [RouterLink, SongEditorComponent],
+  imports: [SongEditorComponent],
   templateUrl: './song-library.component.html',
   styleUrl: './song-library.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -21,7 +23,24 @@ export class SongLibraryComponent {
   protected readonly songs = signal<Song[]>([]);
   protected readonly editorOpen = signal(false);
   protected readonly editingSong = signal<Song | null>(null);
+  protected readonly rhythmFilters = [
+    { value: 'all', label: 'All' },
+    { value: 'straight', label: 'Straight' },
+    { value: 'swing', label: 'Swing' },
+    { value: 'compound', label: 'Compound' },
+  ] as const;
+  protected readonly selectedFilter = signal<SongFilterValue>('all');
   protected readonly currentSongId = computed(() => this.metronome.activeSongId());
+  protected readonly activeSong = computed(() => this.songs().find((song) => song.id === this.currentSongId()) ?? null);
+  protected readonly filteredSongs = computed(() => {
+    const filter = this.selectedFilter();
+
+    if (filter === 'all') {
+      return this.songs();
+    }
+
+    return this.songs().filter((song) => song.rhythm === filter);
+  });
 
   constructor() {
     void this.refresh();
@@ -40,6 +59,10 @@ export class SongLibraryComponent {
   protected closeEditor(): void {
     this.editorOpen.set(false);
     this.editingSong.set(null);
+  }
+
+  protected setFilter(value: SongFilterValue): void {
+    this.selectedFilter.set(value);
   }
 
   protected async saveSong(draft: SongDraft): Promise<void> {
