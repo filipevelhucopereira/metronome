@@ -92,60 +92,46 @@
   <article class="panel settings-sheet">
     <div class="settings-sheet__header">
       <p class="page-eyebrow">Transport settings</p>
-      <p class="settings-sheet__summary">{{ meterCaption() }}</p>
+      <p class="settings-sheet__summary">{{ settingsCaption() }}</p>
     </div>
 
-    <section class="settings-row">
-      <div class="settings-row__header">
-        <p class="section-label">Meter</p>
-      </div>
+    <div class="segmented-grid segmented-grid--meter" aria-label="Meter">
+      @for (beats of beatOptions; track beats) {
+        <button
+          type="button"
+          class="segmented-button segmented-button--meter"
+          [class.is-selected]="metronome.beatsPerBar() === beats"
+          [attr.aria-pressed]="metronome.beatsPerBar() === beats"
+          (click)="selectBeatsPerBar(beats)"
+        >
+          {{ beats }}
+        </button>
+      }
+    </div>
 
-      <div class="segmented-grid segmented-grid--meter">
-        @for (beats of beatOptions; track beats) {
-          <button
-            type="button"
-            class="segmented-button"
-            [class.is-selected]="metronome.beatsPerBar() === beats"
-            [attr.aria-pressed]="metronome.beatsPerBar() === beats"
-            (click)="selectBeatsPerBar(beats)"
-          >
-            {{ beats }}
-          </button>
-        }
-      </div>
-    </section>
-
-    <section class="settings-row">
-      <div class="settings-row__header">
-        <p class="section-label">Subdivision</p>
-      </div>
-
-      <div class="segmented-grid segmented-grid--subdivision">
-        @for (option of subdivisionOptions; track option.value) {
-          <button
-            type="button"
-            class="segmented-button"
-            [class.is-selected]="metronome.subdivision() === option.value"
-            [attr.aria-pressed]="metronome.subdivision() === option.value"
-            (click)="selectSubdivision(option.value)"
-          >
-            {{ option.shortLabel }}
-          </button>
-        }
-      </div>
-    </section>
+    <div class="segmented-grid segmented-grid--subdivision" aria-label="Subdivision">
+      @for (option of subdivisionOptions; track option.value) {
+        <button
+          type="button"
+          class="segmented-button segmented-button--subdivision"
+          [class.is-selected]="metronome.subdivision() === option.value"
+          [attr.aria-pressed]="metronome.subdivision() === option.value"
+          (click)="selectSubdivision(option.value)"
+        >
+          <span>{{ option.value === 4 ? '16th' : option.shortLabel }}</span>
+          <small>{{ option.value }}</small>
+        </button>
+      }
+    </div>
 
     <div class="settings-footer">
-      <section class="settings-row settings-row--rhythm">
-        <div class="settings-row__header">
-          <p class="section-label">Rhythm feel</p>
-        </div>
-
+      <section class="settings-stack settings-stack--rhythm">
+        <p class="settings-stack__label">Rhythm feel</p>
         <div class="segmented-grid segmented-grid--rhythm">
           @for (option of rhythmOptions; track option.value) {
             <button
               type="button"
-              class="segmented-button"
+              class="segmented-button segmented-button--rhythm"
               [class.is-selected]="metronome.rhythm() === option.value"
               [attr.aria-pressed]="metronome.rhythm() === option.value"
               (click)="selectRhythm(option.value)"
@@ -156,9 +142,9 @@
         </div>
       </section>
 
-      <section class="volume-block">
+      <section class="volume-block" aria-label="Volume">
         <div class="volume-block__header">
-          <p class="section-label">Volume</p>
+          <p class="settings-stack__label">Volume</p>
           <strong>{{ (metronome.volume() * 100).toFixed(0) }}%</strong>
         </div>
 

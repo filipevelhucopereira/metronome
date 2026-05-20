@@ -92,7 +92,7 @@
         <h2>{{ editingSong() ? 'Update preset' : 'Create preset' }}</h2>
       </div>
 
-      <span class="editor-status" [class.is-open]="editorOpen()">{{ editorOpen() ? 'Open' : 'Idle' }}</span>
+      <span class="editor-status" [class.is-open]="editorOpen()">{{ editingSong() ? 'Updated' : editorOpen() ? 'Draft' : 'Idle' }}</span>
     </div>
 
     @if (editorOpen()) {

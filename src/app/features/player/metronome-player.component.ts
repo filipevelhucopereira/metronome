@@ -29,6 +29,12 @@ export class MetronomePlayerComponent {
 
     return `${this.metronome.beatsPerBar()}/4 · ${subdivisionLabel.toLowerCase()} · ${rhythmLabel.toLowerCase()}`;
   });
+  protected readonly settingsCaption = computed(() => {
+    const rhythmLabel = this.rhythmOptions.find((option) => option.value === this.metronome.rhythm())?.label ?? 'Straight';
+    const subdivisionLabel = this.subdivisionOptions.find((option) => option.value === this.metronome.subdivision())?.label ?? 'Quarter';
+
+    return `${this.metronome.beatsPerBar()}/4 · ${subdivisionLabel} · ${rhythmLabel}`;
+  });
 
   protected readonly currentSessionLabel = computed(() => this.metronome.activeSongName() ?? 'Live Session');
   protected readonly currentSetlistBadge = computed(() => {
