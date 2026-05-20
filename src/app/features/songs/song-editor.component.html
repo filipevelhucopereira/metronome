@@ -1,0 +1,75 @@
+<form class="song-editor" [formGroup]="form" (ngSubmit)="submit()">
+  <label class="field">
+    <span>Name</span>
+    <input type="text" formControlName="name" maxlength="64" placeholder="Warm-up groove" />
+  </label>
+
+  <label class="field">
+    <span>Tempo</span>
+    <input type="number" formControlName="tempo" min="30" max="240" />
+  </label>
+
+  <div class="field-group">
+    <div>
+      <p class="field-label">Beats per bar</p>
+      <div class="segmented-grid">
+        @for (beats of beatOptions; track beats) {
+          <button
+            type="button"
+            class="segmented-button"
+            [class.is-selected]="form.controls.beatsPerBar.value === beats"
+            [attr.aria-pressed]="form.controls.beatsPerBar.value === beats"
+            (click)="form.controls.beatsPerBar.setValue(beats)"
+          >
+            {{ beats }}
+          </button>
+        }
+      </div>
+    </div>
+
+    <div>
+      <p class="field-label">Subdivision</p>
+      <div class="stacked-grid">
+        @for (option of subdivisionOptions; track option.value) {
+          <button
+            type="button"
+            class="selection-card"
+            [class.is-selected]="form.controls.subdivision.value === option.value"
+            [attr.aria-pressed]="form.controls.subdivision.value === option.value"
+            (click)="updateSubdivision(option.value)"
+          >
+            <span>{{ option.label }}</span>
+            <small>{{ option.pulsesPerBeat }} per beat</small>
+          </button>
+        }
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <p class="field-label">Rhythm</p>
+    <div class="stacked-grid">
+      @for (option of rhythmOptions; track option.value) {
+        <button
+          type="button"
+          class="selection-card"
+          [class.is-selected]="form.controls.rhythm.value === option.value"
+          [attr.aria-pressed]="form.controls.rhythm.value === option.value"
+          (click)="updateRhythm(option.value)"
+        >
+          <span>{{ option.label }}</span>
+        </button>
+      }
+    </div>
+  </div>
+
+  <label class="field">
+    <span>Volume</span>
+    <input type="range" min="0" max="1" step="0.01" formControlName="volume" />
+  </label>
+
+  <div class="actions">
+    <button type="button" class="ghost-button" (click)="cancel()">Cancel</button>
+    <button type="submit" class="primary-button">{{ submitLabel() }}</button>
+  </div>
+</form>

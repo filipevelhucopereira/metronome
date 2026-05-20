@@ -1,0 +1,65 @@
+<section class="page-header">
+  <div>
+    <p class="page-eyebrow">Song Library</p>
+    <h1>Presets and session memory</h1>
+    <p class="page-copy">Create named presets, duplicate practice setups, and send any song straight into the player.</p>
+  </div>
+
+  <div class="page-actions">
+    <a routerLink="/" class="secondary-link">Back to player</a>
+    <button type="button" class="primary-button" (click)="openNewSong()">New song</button>
+  </div>
+</section>
+
+<section class="library-layout">
+  <article class="panel list-panel">
+    @if (!songs().length) {
+      <div class="empty-state">
+        <h2>No songs yet</h2>
+        <p>Save your first practice preset to build a reusable library.</p>
+      </div>
+    } @else {
+      <div class="song-list">
+        @for (song of songs(); track song.id) {
+          <article class="song-card" [class.is-active]="currentSongId() === song.id">
+            <div>
+              <p class="card-label">{{ song.tempo }} BPM · {{ song.beatsPerBar }}/4 · {{ song.rhythm }}</p>
+              <h2>{{ song.name }}</h2>
+              <p class="card-copy">Subdivision {{ song.subdivision }} · Volume {{ (song.volume * 100).toFixed(0) }}%</p>
+            </div>
+
+            <div class="card-actions">
+              <button type="button" class="ghost-button" (click)="loadSong(song)">Load</button>
+              <button type="button" class="ghost-button" (click)="openEditSong(song)">Edit</button>
+              <button type="button" class="ghost-button" (click)="duplicateSong(song.id)">Duplicate</button>
+              <button type="button" class="ghost-button" (click)="deleteSong(song.id)">Delete</button>
+            </div>
+          </article>
+        }
+      </div>
+    }
+  </article>
+
+  <article class="panel editor-panel">
+    <div class="panel-heading">
+      <div>
+        <p class="page-eyebrow">Editor</p>
+        <h2>{{ editingSong() ? 'Update preset' : 'Create preset' }}</h2>
+      </div>
+    </div>
+
+    @if (editorOpen()) {
+      <app-song-editor
+        [song]="editingSong()"
+        [submitLabel]="editingSong() ? 'Update song' : 'Save song'"
+        (saved)="saveSong($event)"
+        (canceled)="closeEditor()"
+      />
+    } @else {
+      <div class="empty-state compact-state">
+        <h3>Editor idle</h3>
+        <p>Select a song to edit or create a new preset.</p>
+      </div>
+    }
+  </article>
+</section>

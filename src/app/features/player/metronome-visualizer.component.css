@@ -1,0 +1,105 @@
+:host {
+  display: block;
+}
+
+.visualizer-frame {
+  display: grid;
+  gap: 1rem;
+  justify-items: center;
+}
+
+.visualizer-canvas {
+  width: min(100%, 22rem);
+  overflow: visible;
+  filter: drop-shadow(0 1.25rem 3rem rgba(0, 0, 0, 0.34));
+}
+
+.orbit {
+  fill: rgba(255, 255, 255, 0.02);
+  stroke: rgba(255, 255, 255, 0.12);
+  stroke-width: 1.5;
+}
+
+.lane-marker {
+  fill: rgba(255, 255, 255, 0.14);
+  stroke: rgba(255, 255, 255, 0.14);
+  transition: fill 120ms ease, transform 120ms ease;
+}
+
+.lane-marker.is-passed {
+  fill: rgba(94, 217, 255, 0.5);
+  stroke: rgba(94, 217, 255, 0.5);
+}
+
+.lane-marker.is-current {
+  fill: rgb(255, 154, 82);
+  stroke: rgb(255, 223, 190);
+}
+
+.pendulum-arm {
+  stroke: rgba(255, 255, 255, 0.84);
+  stroke-width: 5;
+  stroke-linecap: round;
+}
+
+.pendulum-head {
+  fill: rgba(72, 225, 255, 0.86);
+  stroke: rgba(255, 255, 255, 0.4);
+  stroke-width: 2;
+}
+
+.pulse-halo {
+  fill: rgba(255, 133, 82, 0.18);
+}
+
+.pulse-core {
+  fill: rgb(94, 217, 255);
+  stroke: rgba(255, 255, 255, 0.35);
+  stroke-width: 4;
+}
+
+.pulse-core.is-beat {
+  fill: rgb(123, 239, 185);
+}
+
+.pulse-core.is-bar {
+  fill: rgb(255, 154, 82);
+}
+
+.pivot {
+  fill: rgba(255, 255, 255, 0.92);
+}
+
+.beat-text {
+  fill: white;
+  font-size: 3rem;
+  font-weight: 700;
+  text-anchor: middle;
+}
+
+.beat-caption {
+  fill: rgba(233, 240, 255, 0.82);
+  font-size: 1rem;
+  font-weight: 600;
+  text-anchor: middle;
+}
+
+.visualizer-meta {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  color: var(--muted-text);
+  font-size: 0.95rem;
+}
+
+.visualizer-meta p {
+  margin: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lane-marker,
+  .visualizer-canvas {
+    transition: none;
+  }
+}

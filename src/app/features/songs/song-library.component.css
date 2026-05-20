@@ -1,0 +1,122 @@
+:host {
+  display: block;
+}
+
+.page-header,
+.page-actions,
+.panel-heading,
+.card-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: start;
+}
+
+.page-eyebrow,
+.card-label {
+  margin: 0;
+  color: var(--accent-cyan);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.page-header h1,
+.panel-heading h2,
+.song-card h2,
+.empty-state h2,
+.empty-state h3 {
+  margin: 0.35rem 0 0;
+}
+
+.page-copy,
+.card-copy,
+.empty-state p {
+  color: var(--muted-text);
+}
+
+.library-layout {
+  display: grid;
+  gap: 1.25rem;
+  margin-top: 1.5rem;
+}
+
+.panel {
+  border-radius: 1.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: linear-gradient(160deg, rgba(7, 18, 33, 0.92), rgba(12, 28, 48, 0.86));
+  box-shadow: var(--panel-shadow);
+  padding: 1.25rem;
+}
+
+.song-list {
+  display: grid;
+  gap: 1rem;
+}
+
+.song-card {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+  border-radius: 1.25rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid transparent;
+}
+
+.song-card.is-active {
+  border-color: rgba(94, 217, 255, 0.5);
+}
+
+.card-actions {
+  flex-wrap: wrap;
+}
+
+.ghost-button,
+.primary-button,
+.secondary-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 3rem;
+  padding: 0.75rem 1rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+.primary-button {
+  background: linear-gradient(135deg, rgba(255, 154, 82, 0.95), rgba(255, 122, 94, 0.92));
+  border-color: transparent;
+  color: rgb(21, 16, 12);
+  font-weight: 800;
+}
+
+.empty-state {
+  display: grid;
+  gap: 0.75rem;
+  align-content: center;
+  min-height: 12rem;
+}
+
+.compact-state {
+  min-height: 10rem;
+}
+
+@media (min-width: 980px) {
+  .library-layout {
+    grid-template-columns: minmax(0, 1.2fr) minmax(20rem, 0.9fr);
+  }
+}
+
+@media (max-width: 720px) {
+  .page-header,
+  .page-actions,
+  .panel-heading,
+  .card-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

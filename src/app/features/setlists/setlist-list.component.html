@@ -1,0 +1,48 @@
+<section class="page-header">
+  <div>
+    <p class="page-eyebrow">Setlists</p>
+    <h1>Build practice flows</h1>
+    <p class="page-copy">Organize songs into a run order, drag them into place, and advance manually from the player.</p>
+  </div>
+
+  <div class="page-actions">
+    <a routerLink="/" class="secondary-link">Back to player</a>
+    <a routerLink="/songs" class="secondary-link">Song library</a>
+  </div>
+</section>
+
+<section class="setlist-layout">
+  <article class="panel create-panel">
+    <h2>Create a setlist</h2>
+    <div class="create-row">
+      <input [formControl]="createControl" type="text" maxlength="64" placeholder="Weekend practice set" />
+      <button type="button" class="primary-button" (click)="createSetlist()">Create</button>
+    </div>
+  </article>
+
+  <article class="panel list-panel">
+    @if (!setlists().length) {
+      <div class="empty-state">
+        <h2>No setlists yet</h2>
+        <p>Create a setlist to start sequencing your songs.</p>
+      </div>
+    } @else {
+      <div class="setlist-list">
+        @for (setlist of setlists(); track setlist.id) {
+          <article class="setlist-card" [class.is-active]="currentSetlistId() === setlist.id">
+            <div>
+              <p class="page-eyebrow">{{ setlist.songIds.length }} songs</p>
+              <h2>{{ setlist.name }}</h2>
+            </div>
+
+            <div class="card-actions">
+              <button type="button" class="ghost-button" (click)="startSetlist(setlist.id)">Play</button>
+              <a [routerLink]="['/setlists', setlist.id]" class="ghost-button">Edit</a>
+              <button type="button" class="ghost-button" (click)="deleteSetlist(setlist.id)">Delete</button>
+            </div>
+          </article>
+        }
+      </div>
+    }
+  </article>
+</section>

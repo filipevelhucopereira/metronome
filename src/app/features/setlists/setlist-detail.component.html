@@ -1,0 +1,101 @@
+@if (setlist(); as currentSetlist) {
+  <section class="page-header">
+    <div>
+      <p class="page-eyebrow">Setlist Detail</p>
+      <h1>{{ currentSetlist.name }}</h1>
+      <p class="page-copy">Drag songs into order, keep keyboard fallbacks, and launch the sequence from the player.</p>
+    </div>
+
+    <div class="page-actions">
+      <a routerLink="/setlists" class="secondary-link">Back to setlists</a>
+      <button type="button" class="primary-button" (click)="playSetlist()">Play setlist</button>
+    </div>
+  </section>
+
+  <section class="detail-layout">
+    <article class="panel settings-panel">
+      <label class="field">
+        <span>Setlist name</span>
+        <input [formControl]="nameControl" type="text" maxlength="64" />
+      </label>
+
+      <button type="button" class="ghost-button" (click)="saveName()">Save name</button>
+
+      <label class="field">
+        <span>Add song</span>
+        <select [formControl]="addSongControl">
+          <option value="">Choose a song</option>
+          @for (song of librarySongs(); track song.id) {
+            <option [value]="song.id">{{ song.name }} · {{ song.tempo }} BPM</option>
+          }
+        </select>
+      </label>
+
+      <button type="button" class="ghost-button" (click)="addSong()" [disabled]="!addSongControl.value">Add song</button>
+    </article>
+
+    <article class="panel list-panel">
+      <p class="sr-only" aria-live="polite">{{ announcement() }}</p>
+
+      @if (!currentSetlist.entries.length) {
+        <div class="empty-state">
+          <h2>No songs in this setlist</h2>
+          <p>Add songs from your library to start building the run order.</p>
+        </div>
+      } @else {
+        <div
+          cdkDropList
+          class="entry-list"
+          [cdkDropListData]="currentSetlist.entries"
+          (cdkDropListDropped)="dropSong($event)"
+        >
+          @for (entry of currentSetlist.entries; track entry.id) {
+            <article class="entry-card" cdkDrag>
+              <button
+                type="button"
+                class="drag-handle"
+                cdkDragHandle
+                [id]="'setlist-handle-' + entry.order"
+                [attr.aria-label]="'Drag to reorder ' + entry.song.name"
+              >
+                Drag
+              </button>
+
+              <div class="entry-copy">
+                <p class="page-eyebrow">{{ entry.order + 1 }}</p>
+                <h2>{{ entry.song.name }}</h2>
+                <p class="page-copy">{{ entry.song.tempo }} BPM · {{ entry.song.beatsPerBar }}/4 · {{ entry.song.rhythm }}</p>
+              </div>
+
+              <div class="entry-actions">
+                <button
+                  type="button"
+                  class="ghost-button"
+                  (click)="moveSong(entry.order, entry.order - 1)"
+                  [disabled]="entry.order === 0"
+                >
+                  Move up
+                </button>
+                <button
+                  type="button"
+                  class="ghost-button"
+                  (click)="moveSong(entry.order, entry.order + 1)"
+                  [disabled]="entry.order === currentSetlist.entries.length - 1"
+                >
+                  Move down
+                </button>
+                <button type="button" class="ghost-button" (click)="removeSong(entry.order)">Remove</button>
+              </div>
+            </article>
+          }
+        </div>
+      }
+    </article>
+  </section>
+} @else {
+  <section class="panel empty-state not-found-state">
+    <h1>Setlist not found</h1>
+    <p>The requested setlist could not be loaded.</p>
+    <a routerLink="/setlists" class="secondary-link">Back to setlists</a>
+  </section>
+}
