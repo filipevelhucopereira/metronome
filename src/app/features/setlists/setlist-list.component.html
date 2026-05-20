@@ -14,15 +14,32 @@
         <h2>Create a setlist</h2>
       </div>
 
-      <span class="create-tag">New</span>
+      <span class="status-badge status-badge--warm">New</span>
     </div>
 
     <div class="create-row">
-      <input [formControl]="createControl" type="text" maxlength="64" placeholder="Weekend practice set" />
-      <button type="button" class="primary-button" (click)="createSetlist()">Create</button>
+      <label class="field create-field" [class.field--invalid]="createControl.invalid && createControl.touched">
+        <div class="field__meta">
+          <span class="field__label">Setlist name</span>
+          <span class="field__counter" [attr.aria-live]="createControl.dirty ? 'polite' : null">{{ createControl.value.length }}/64</span>
+        </div>
+        <input
+          [formControl]="createControl"
+          type="text"
+          maxlength="64"
+          placeholder="Weekend practice set"
+          [attr.aria-invalid]="createControl.invalid && createControl.touched"
+          [attr.aria-describedby]="createControl.invalid && createControl.touched ? 'setlist-create-hint setlist-create-error' : 'setlist-create-hint'"
+        />
+        <span id="setlist-create-hint" class="field__hint">Create opens the new setlist in detail so songs can be added and ordered immediately.</span>
+        @if ((createControl.hasError('required') || createControl.hasError('pattern')) && createControl.touched) {
+          <span id="setlist-create-error" class="field__error">Enter a setlist name before creating it.</span>
+        } @else if (createControl.hasError('maxlength') && createControl.touched) {
+          <span id="setlist-create-error" class="field__error">Setlist names must stay within 64 characters.</span>
+        }
+      </label>
+      <button type="button" class="primary-button button-compact" (click)="createSetlist()">Create</button>
     </div>
-
-    <p class="create-help">Create opens the new setlist in detail so songs can be added and ordered immediately.</p>
   </article>
 
   <article class="panel list-panel">
@@ -35,14 +52,14 @@
             <p class="resume-card__meta">{{ activeSet.songIds.length }} songs queued for practice</p>
           </div>
 
-          <span class="resume-badge">Active</span>
+          <span class="status-badge status-badge--accent">Active</span>
         </div>
 
         <div class="setlist-preview" [style.--preview-width]="previewWidth(activeSet.songIds.length)"></div>
 
         <div class="card-actions">
-          <button type="button" class="primary-button" (click)="startSetlist(activeSet.id)">Play now</button>
-          <a [routerLink]="['/setlists', activeSet.id]" class="ghost-button">Edit order</a>
+          <button type="button" class="primary-button button-compact" (click)="startSetlist(activeSet.id)">Play now</button>
+          <a [routerLink]="['/setlists', activeSet.id]" class="ghost-button button-compact">Edit order</a>
         </div>
       </section>
     }
@@ -86,16 +103,16 @@
               </div>
 
               @if (currentSetlistId() === setlist.id) {
-                <span class="setlist-badge">Current</span>
+                <span class="status-badge status-badge--accent">Current</span>
               }
             </div>
 
             <div class="setlist-preview" [style.--preview-width]="previewWidth(setlist.songIds.length)"></div>
 
             <div class="card-actions">
-              <button type="button" class="ghost-button" (click)="startSetlist(setlist.id)">Play</button>
-              <a [routerLink]="['/setlists', setlist.id]" class="ghost-button">Edit</a>
-              <button type="button" class="ghost-button" (click)="deleteSetlist(setlist.id)">Delete</button>
+              <button type="button" class="ghost-button button-compact" (click)="startSetlist(setlist.id)">Play</button>
+              <a [routerLink]="['/setlists', setlist.id]" class="ghost-button button-compact">Edit</a>
+              <button type="button" class="ghost-button button-compact" (click)="deleteSetlist(setlist.id)">Delete</button>
             </div>
           </article>
         }

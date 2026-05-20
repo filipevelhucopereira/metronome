@@ -46,7 +46,7 @@ export class SetlistListComponent {
   });
   protected readonly createControl = new FormControl('', {
     nonNullable: true,
-    validators: [Validators.required, Validators.maxLength(64)],
+    validators: [Validators.required, Validators.pattern(/\S/), Validators.maxLength(64)],
   });
 
   constructor() {

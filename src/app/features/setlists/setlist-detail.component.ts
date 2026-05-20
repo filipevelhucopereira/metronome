@@ -31,7 +31,7 @@ export class SetlistDetailComponent {
 
   protected readonly nameControl = new FormControl('', {
     nonNullable: true,
-    validators: [Validators.required, Validators.maxLength(64)],
+    validators: [Validators.required, Validators.pattern(/\S/), Validators.maxLength(64)],
   });
 
   protected readonly addSongControl = new FormControl('', {
@@ -55,6 +55,7 @@ export class SetlistDetailComponent {
       name: this.nameControl.getRawValue().trim(),
     });
 
+    this.nameControl.markAsPristine();
     await this.refresh();
   }
 
@@ -155,8 +156,9 @@ export class SetlistDetailComponent {
     this.setlist.set(setlist);
     this.librarySongs.set(songs);
 
-    if (setlist) {
+    if (setlist && !this.nameControl.dirty) {
       this.nameControl.setValue(setlist.name);
+      this.nameControl.markAsUntouched();
     }
   }
 }

@@ -10,9 +10,6 @@ import { MetronomeVisualizerComponent } from './metronome-visualizer.component';
   templateUrl: './metronome-player.component.html',
   styleUrl: './metronome-player.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: {
-    class: 'player-page',
-  },
 })
 export class MetronomePlayerComponent {
   protected readonly metronome = inject(MetronomeService);
@@ -49,7 +46,10 @@ export class MetronomePlayerComponent {
   });
   protected readonly pulseCaption = computed(() => `Pulse ${this.metronome.currentPulseInBeat()} of ${this.metronome.pulsesPerBeat()}`);
   protected readonly beatCaption = computed(() => `Beat ${this.metronome.currentBeatInBar()} of ${this.metronome.beatsPerBar()}`);
+  protected readonly beatStripCaption = computed(() => `${this.beatCaption()} · ${this.pulseCaption()}`);
   protected readonly lookaheadCaption = computed(() => `Lookahead sync ${this.metronome.isPlaying() ? 'running' : 'stable'}`);
+  protected readonly tempoSliderCaption = computed(() => `Range 30 to 240 BPM. Current ${this.metronome.tempo()} BPM.`);
+  protected readonly volumeSliderCaption = computed(() => `Range 0 to 100 percent. Current ${Math.round(this.metronome.volume() * 100)} percent.`);
 
   protected togglePlayback(): void {
     if (this.metronome.isPlaying()) {

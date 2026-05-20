@@ -1,12 +1,42 @@
-<form class="song-editor" [formGroup]="form" (ngSubmit)="submit()">
-  <label class="field">
-    <span>Name</span>
-    <input type="text" formControlName="name" maxlength="64" placeholder="Warm-up groove" />
+<form class="song-editor" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+  <label class="field" [class.field--invalid]="nameControl.invalid && nameControl.touched">
+    <div class="field__meta">
+      <span class="field__label">Name</span>
+      <span class="field__counter" [attr.aria-live]="nameControl.dirty ? 'polite' : null">{{ nameControl.value.length }}/64</span>
+    </div>
+    <input
+      type="text"
+      formControlName="name"
+      maxlength="64"
+      placeholder="Warm-up groove"
+      [attr.aria-invalid]="nameControl.invalid && nameControl.touched"
+      [attr.aria-describedby]="nameControl.invalid && nameControl.touched ? 'song-name-hint song-name-error' : 'song-name-hint'"
+    />
+    <span id="song-name-hint" class="field__hint">Saved presets use the song name as the library label.</span>
+    @if ((nameControl.hasError('required') || nameControl.hasError('pattern')) && nameControl.touched) {
+      <span id="song-name-error" class="field__error">Enter a song name before saving this preset.</span>
+    } @else if (nameControl.hasError('maxlength') && nameControl.touched) {
+      <span id="song-name-error" class="field__error">Song names must stay within 64 characters.</span>
+    }
   </label>
 
-  <label class="field">
-    <span>Tempo</span>
-    <input type="number" formControlName="tempo" min="30" max="240" />
+  <label class="field" [class.field--invalid]="tempoControl.invalid && tempoControl.touched">
+    <div class="field__meta">
+      <span class="field__label">Tempo</span>
+      <span class="field__counter">{{ tempoControl.value }} BPM</span>
+    </div>
+    <input
+      type="number"
+      formControlName="tempo"
+      min="30"
+      max="240"
+      [attr.aria-invalid]="tempoControl.invalid && tempoControl.touched"
+      [attr.aria-describedby]="tempoControl.invalid && tempoControl.touched ? 'song-tempo-hint song-tempo-error' : 'song-tempo-hint'"
+    />
+    <span id="song-tempo-hint" class="field__hint">Choose a tempo between 30 and 240 BPM.</span>
+    @if ((tempoControl.hasError('required') || tempoControl.hasError('min') || tempoControl.hasError('max')) && tempoControl.touched) {
+      <span id="song-tempo-error" class="field__error">Tempo must stay between 30 and 240 BPM.</span>
+    }
   </label>
 
   <div class="field-group">
@@ -17,9 +47,9 @@
           <button
             type="button"
             class="segmented-button"
-            [class.is-selected]="form.controls.beatsPerBar.value === beats"
-            [attr.aria-pressed]="form.controls.beatsPerBar.value === beats"
-            (click)="form.controls.beatsPerBar.setValue(beats)"
+            [class.is-selected]="beatsPerBarControl.value === beats"
+            [attr.aria-pressed]="beatsPerBarControl.value === beats"
+            (click)="beatsPerBarControl.setValue(beats)"
           >
             {{ beats }}
           </button>
@@ -34,8 +64,8 @@
           <button
             type="button"
             class="selection-card"
-            [class.is-selected]="form.controls.subdivision.value === option.value"
-            [attr.aria-pressed]="form.controls.subdivision.value === option.value"
+            [class.is-selected]="subdivisionControl.value === option.value"
+            [attr.aria-pressed]="subdivisionControl.value === option.value"
             (click)="updateSubdivision(option.value)"
           >
             <span>{{ option.label }}</span>
@@ -53,8 +83,8 @@
         <button
           type="button"
           class="selection-card"
-          [class.is-selected]="form.controls.rhythm.value === option.value"
-          [attr.aria-pressed]="form.controls.rhythm.value === option.value"
+          [class.is-selected]="rhythmControl.value === option.value"
+          [attr.aria-pressed]="rhythmControl.value === option.value"
           (click)="updateRhythm(option.value)"
         >
           <span>{{ option.label }}</span>
@@ -63,13 +93,32 @@
     </div>
   </div>
 
-  <label class="field">
-    <span>Volume</span>
-    <input type="range" min="0" max="1" step="0.01" formControlName="volume" />
-  </label>
+  <p class="support-note selection-note">{{ normalizationHint }}</p>
+
+  <div class="field volume-field">
+    <div class="field__meta">
+      <span class="field__label">Volume</span>
+      <span class="field__counter">{{ (volumeControl.value * 100).toFixed(0) }}%</span>
+    </div>
+    <div class="range-field">
+      <span class="range-field__bound" aria-hidden="true">0%</span>
+      <input
+        id="song-volume"
+        type="range"
+        min="0"
+        max="1"
+        step="0.01"
+        formControlName="volume"
+        aria-describedby="song-volume-hint"
+        [attr.aria-valuetext]="(volumeControl.value * 100).toFixed(0) + '% volume'"
+      />
+      <span class="range-field__bound" aria-hidden="true">100%</span>
+    </div>
+    <span id="song-volume-hint" class="field__hint">Lower it for softer click tracks or raise it for clearer count-ins.</span>
+  </div>
 
   <div class="actions">
-    <button type="button" class="ghost-button" (click)="cancel()">Cancel</button>
-    <button type="submit" class="primary-button">{{ submitLabel() }}</button>
+    <button type="button" class="ghost-button button-compact" (click)="cancel()">Cancel</button>
+    <button type="submit" class="primary-button button-compact">{{ submitLabel() }}</button>
   </div>
 </form>

@@ -5,7 +5,7 @@
     <p class="page-copy">Loaded state, quick actions, and editor stay on one route.</p>
   </div>
 
-  <button type="button" class="primary-button page-header__action" (click)="openNewSong()">New song</button>
+  <button type="button" class="primary-button page-header__action button-compact" (click)="openNewSong()">New song</button>
 </section>
 
 <section class="library-layout">
@@ -21,12 +21,12 @@
             </p>
           </div>
 
-          <span class="summary-pill">Active</span>
+          <span class="status-badge status-badge--accent">Active</span>
         </div>
 
         <div class="library-summary__actions">
-          <button type="button" class="primary-button" (click)="loadSong(currentSong)">Load to player</button>
-          <button type="button" class="ghost-button" (click)="openEditSong(currentSong)">Edit preset</button>
+          <button type="button" class="primary-button button-compact" (click)="loadSong(currentSong)">Load to player</button>
+          <button type="button" class="ghost-button button-compact" (click)="openEditSong(currentSong)">Edit preset</button>
         </div>
       </section>
     }
@@ -68,15 +68,15 @@
               </div>
 
               @if (currentSongId() === song.id) {
-                <span class="song-status-pill">Active</span>
+                <span class="status-badge status-badge--accent">Active</span>
               }
             </div>
 
             <div class="card-actions">
-              <button type="button" class="ghost-button" (click)="loadSong(song)">Load</button>
-              <button type="button" class="ghost-button" (click)="openEditSong(song)">Edit</button>
-              <button type="button" class="ghost-button" (click)="duplicateSong(song.id)">Duplicate</button>
-              <button type="button" class="ghost-button" (click)="deleteSong(song.id)">Delete</button>
+              <button type="button" class="ghost-button button-compact button-compact--tight" (click)="loadSong(song)">Load</button>
+              <button type="button" class="ghost-button button-compact button-compact--tight" (click)="openEditSong(song)">Edit</button>
+              <button type="button" class="ghost-button button-compact button-compact--tight" (click)="duplicateSong(song.id)">Duplicate</button>
+              <button type="button" class="ghost-button button-compact button-compact--tight" (click)="deleteSong(song.id)">Delete</button>
             </div>
           </article>
         }
@@ -92,7 +92,7 @@
         <h2>{{ editingSong() ? 'Update preset' : 'Create preset' }}</h2>
       </div>
 
-      <span class="editor-status" [class.is-open]="editorOpen()">{{ editingSong() ? 'Updated' : editorOpen() ? 'Draft' : 'Idle' }}</span>
+      <span class="status-badge status-badge--muted editor-status" [class.is-open]="editorOpen()">{{ editingSong() ? 'Updated' : editorOpen() ? 'Draft' : 'Idle' }}</span>
     </div>
 
     @if (editorOpen()) {
@@ -109,6 +109,6 @@
       </div>
     }
 
-    <p class="editor-note">Saving updates the library and closes the editor when the action completes.</p>
+    <p class="support-note editor-note">Saving updates the library and closes the editor when the action completes.</p>
   </article>
 </section>

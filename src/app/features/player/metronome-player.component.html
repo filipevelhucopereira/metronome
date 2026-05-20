@@ -45,9 +45,10 @@
           <span class="beat-chip" [class.is-active]="metronome.currentBeatInBar() === beat">{{ beat }}</span>
         }
       </div>
+      <p class="beat-strip__hint" aria-live="polite">{{ beatStripCaption() }}</p>
 
       <label class="tempo-range" for="tempo-slider">
-        <span>30</span>
+        <span class="tempo-range__bound" aria-hidden="true">30</span>
         <input
           id="tempo-slider"
           type="range"
@@ -56,9 +57,15 @@
           [value]="metronome.tempo()"
           (input)="updateTempo($event)"
           aria-label="Tempo in beats per minute"
+          aria-describedby="tempo-slider-hint"
+          [attr.aria-valuetext]="metronome.tempo() + ' beats per minute'"
         />
-        <span>240</span>
+        <span class="tempo-range__bound" aria-hidden="true">240</span>
       </label>
+      <div class="tempo-stage__assistive">
+        <p id="tempo-slider-hint">{{ tempoSliderCaption() }}</p>
+        <output for="tempo-slider">{{ metronome.tempo() }} BPM selected</output>
+      </div>
 
       <div class="tempo-buttons" aria-label="Tempo adjustments">
         <button type="button" class="ghost-button" (click)="adjustTempo(-5)">-5</button>
@@ -157,12 +164,15 @@
           [value]="metronome.volume()"
           (input)="updateVolume($event)"
           aria-label="Metronome volume"
+          aria-describedby="volume-slider-hint"
+          [attr.aria-valuetext]="(metronome.volume() * 100).toFixed(0) + ' percent volume'"
         />
+        <p id="volume-slider-hint" class="volume-block__hint">{{ volumeSliderCaption() }}</p>
       </section>
     </div>
   </article>
 </section>
 
 @if (audioSupportMessage(); as supportMessage) {
-  <p class="audio-support-note" role="status" aria-live="polite">{{ supportMessage }}</p>
+  <p class="support-note support-note--warm audio-support-note" role="status" aria-live="polite">{{ supportMessage }}</p>
 }

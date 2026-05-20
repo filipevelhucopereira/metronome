@@ -6,16 +6,16 @@
       <p class="page-copy">Rename, reorder, and load songs into the current sequence.</p>
     </div>
 
-    <button type="button" class="primary-button page-header__action" (click)="playSetlist()">Play set</button>
+    <button type="button" class="primary-button page-header__action button-compact" (click)="playSetlist()">Play set</button>
   </section>
 
   <div class="detail-status" aria-label="Current setlist status">
-    <span class="detail-status__pill" [class.is-active]="isActiveSetlist()">
+    <span class="status-badge" [class.status-badge--accent]="isActiveSetlist()" [class.status-badge--muted]="!isActiveSetlist()">
       {{ isActiveSetlist() ? 'Active setlist' : 'Ready' }}
     </span>
-    <span class="detail-status__pill">{{ currentSetlist.songIds.length }} songs</span>
+    <span class="status-badge status-badge--muted">{{ currentSetlist.songIds.length }} songs</span>
     @if (isActiveSetlist()) {
-      <span class="detail-status__pill">Song {{ activeSetlistIndex() + 1 }} live</span>
+      <span class="status-badge status-badge--accent">Song {{ activeSetlistIndex() + 1 }} live</span>
     }
   </div>
 
@@ -28,17 +28,32 @@
           <p class="page-copy">Rename, add songs, and keep touch and keyboard reorder fallbacks visible.</p>
         </div>
 
-        <span class="detail-status__pill detail-status__pill--muted">Auto save off</span>
+        <span class="status-badge status-badge--muted">Manual save</span>
       </div>
 
-      <label class="field">
-        <span>Setlist name</span>
-        <input [formControl]="nameControl" type="text" maxlength="64" />
+      <label class="field" [class.field--invalid]="nameControl.invalid && nameControl.touched">
+        <div class="field__meta">
+          <span class="field__label">Setlist name</span>
+          <span class="field__counter" [attr.aria-live]="nameControl.dirty ? 'polite' : null">{{ nameControl.value.length }}/64</span>
+        </div>
+        <input
+          [formControl]="nameControl"
+          type="text"
+          maxlength="64"
+          [attr.aria-invalid]="nameControl.invalid && nameControl.touched"
+          [attr.aria-describedby]="nameControl.invalid && nameControl.touched ? 'setlist-name-hint setlist-name-error' : 'setlist-name-hint'"
+        />
+        <span id="setlist-name-hint" class="field__hint">Changes to the title save only when you choose Save name.</span>
+        @if ((nameControl.hasError('required') || nameControl.hasError('pattern')) && nameControl.touched) {
+          <span id="setlist-name-error" class="field__error">Enter a setlist name before saving.</span>
+        } @else if (nameControl.hasError('maxlength') && nameControl.touched) {
+          <span id="setlist-name-error" class="field__error">Setlist names must stay within 64 characters.</span>
+        }
       </label>
 
       <div class="settings-actions">
-        <button type="button" class="ghost-button" (click)="saveName()">Save name</button>
-        <button type="button" class="ghost-button" (click)="playSetlist()">Start from top</button>
+        <button type="button" class="ghost-button button-compact" (click)="saveName()">Save name</button>
+        <button type="button" class="ghost-button button-compact" (click)="playSetlist()">Start from top</button>
       </div>
 
       <div class="add-song-row">
@@ -52,10 +67,10 @@
           </select>
         </label>
 
-        <button type="button" class="primary-button add-song-button" (click)="addSong()" [disabled]="!addSongControl.value">Add</button>
+        <button type="button" class="primary-button button-compact add-song-button" (click)="addSong()" [disabled]="!addSongControl.value">Add</button>
       </div>
 
-      <p class="settings-note">Touch drag and button reordering stay available together.</p>
+      <p class="support-note settings-note">Name changes save manually, while touch drag and button reordering stay available together.</p>
     </article>
 
     <article class="panel list-panel">
@@ -84,13 +99,18 @@
                 <div class="entry-main">
                   <div class="entry-copy">
                     <h2>{{ entry.song.name }}</h2>
+                    @if (isCurrentEntry(entry)) {
+                      <span class="sr-only">Current song in the active setlist.</span>
+                    } @else if (isNextEntry(entry)) {
+                      <span class="sr-only">Next song in the active setlist.</span>
+                    }
                   </div>
 
                   <div class="entry-flags">
                     @if (isCurrentEntry(entry)) {
-                      <span class="entry-badge is-current">Live</span>
+                      <span class="status-badge status-badge--accent">Live</span>
                     } @else if (isNextEntry(entry)) {
-                      <span class="entry-badge">Next</span>
+                      <span class="status-badge status-badge--muted">Next</span>
                     }
                   </div>
                 </div>
@@ -104,7 +124,7 @@
                 <div class="entry-actions">
                   <button
                     type="button"
-                    class="ghost-button entry-action entry-action--handle"
+                    class="ghost-button button-compact button-compact--tight entry-action entry-action--handle"
                     cdkDragHandle
                     [id]="'setlist-handle-' + entry.order"
                     [attr.aria-label]="'Drag to reorder ' + entry.song.name"
@@ -113,7 +133,7 @@
                   </button>
                   <button
                     type="button"
-                    class="ghost-button entry-action"
+                    class="ghost-button button-compact button-compact--tight entry-action"
                     (click)="moveSong(entry.order, entry.order - 1)"
                     [disabled]="entry.order === 0"
                   >
@@ -121,13 +141,13 @@
                   </button>
                   <button
                     type="button"
-                    class="ghost-button entry-action"
+                    class="ghost-button button-compact button-compact--tight entry-action"
                     (click)="moveSong(entry.order, entry.order + 1)"
                     [disabled]="entry.order === currentSetlist.entries.length - 1"
                   >
                     Down
                   </button>
-                  <button type="button" class="ghost-button entry-action" (click)="removeSong(entry.order)">Remove</button>
+                  <button type="button" class="ghost-button button-compact button-compact--tight entry-action" (click)="removeSong(entry.order)">Remove</button>
                 </div>
               </div>
             </article>

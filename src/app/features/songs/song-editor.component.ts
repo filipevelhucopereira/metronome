@@ -21,11 +21,12 @@ export class SongEditorComponent {
   protected readonly beatOptions = BEATS_PER_BAR_OPTIONS;
   protected readonly subdivisionOptions = SUBDIVISION_OPTIONS;
   protected readonly rhythmOptions = RHYTHM_OPTIONS;
+  protected readonly normalizationHint = 'Rhythm and subdivision stay musically aligned, so changing one may update the other.';
 
   protected readonly form = new FormGroup({
     name: new FormControl(DEFAULT_SONG_DRAFT.name, {
       nonNullable: true,
-      validators: [Validators.required, Validators.maxLength(64)],
+      validators: [Validators.required, Validators.pattern(/\S/), Validators.maxLength(64)],
     }),
     tempo: new FormControl(DEFAULT_SONG_DRAFT.tempo, {
       nonNullable: true,
@@ -48,6 +49,12 @@ export class SongEditorComponent {
       validators: [Validators.required, Validators.min(0), Validators.max(1)],
     }),
   });
+  protected readonly nameControl = this.form.controls.name;
+  protected readonly tempoControl = this.form.controls.tempo;
+  protected readonly beatsPerBarControl = this.form.controls.beatsPerBar;
+  protected readonly subdivisionControl = this.form.controls.subdivision;
+  protected readonly rhythmControl = this.form.controls.rhythm;
+  protected readonly volumeControl = this.form.controls.volume;
 
   constructor() {
     effect(() => {
@@ -60,7 +67,7 @@ export class SongEditorComponent {
         subdivision: song?.subdivision ?? DEFAULT_SONG_DRAFT.subdivision,
         rhythm: song?.rhythm ?? DEFAULT_SONG_DRAFT.rhythm,
         volume: song?.volume ?? DEFAULT_SONG_DRAFT.volume,
-      });
+      }, { emitEvent: false });
     });
   }
 

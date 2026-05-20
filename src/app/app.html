@@ -1,14 +1,15 @@
 <div class="app-shell">
   <header class="top-bar">
-    <div>
-      <p class="top-bar__eyebrow">Offline Ready</p>
-      <a routerLink="/" class="top-bar__brand">Metronome PWA</a>
-    </div>
+    <a routerLink="/" class="top-bar__brand" aria-label="Metronome PWA home">
+      <span class="top-bar__eyebrow">Offline Ready</span>
+      <strong>Metronome PWA</strong>
+      <small>Offline tempo practice for player, songs, and setlists.</small>
+    </a>
 
     <nav class="top-bar__nav" aria-label="Primary navigation">
-      <a routerLink="/" routerLinkActive="is-active" [routerLinkActiveOptions]="{ exact: true }">Player</a>
-      <a routerLink="/songs" routerLinkActive="is-active">Songs</a>
-      <a routerLink="/setlists" routerLinkActive="is-active">Setlists</a>
+      <a routerLink="/" routerLinkActive="is-active" ariaCurrentWhenActive="page" [routerLinkActiveOptions]="{ exact: true }">Player</a>
+      <a routerLink="/songs" routerLinkActive="is-active" ariaCurrentWhenActive="page">Songs</a>
+      <a routerLink="/setlists" routerLinkActive="is-active" ariaCurrentWhenActive="page">Setlists</a>
     </nav>
   </header>
 
@@ -17,8 +18,8 @@
   </main>
 
   <nav class="bottom-nav" aria-label="Mobile navigation">
-    <a routerLink="/" routerLinkActive="is-active" [routerLinkActiveOptions]="{ exact: true }">Player</a>
-    <a routerLink="/songs" routerLinkActive="is-active">Songs</a>
-    <a routerLink="/setlists" routerLinkActive="is-active">Setlists</a>
+    <a routerLink="/" routerLinkActive="is-active" ariaCurrentWhenActive="page" [routerLinkActiveOptions]="{ exact: true }">Player</a>
+    <a routerLink="/songs" routerLinkActive="is-active" ariaCurrentWhenActive="page">Songs</a>
+    <a routerLink="/setlists" routerLinkActive="is-active" ariaCurrentWhenActive="page">Setlists</a>
   </nav>
 </div>
