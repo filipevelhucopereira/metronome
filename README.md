@@ -1,59 +1,63 @@
-# MetronomePwa
+# Metronome PWA
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 21.2.11.
+Precise Angular metronome with Web Audio scheduling, a mobile-first dark UI, song presets, setlists, drag-and-drop ordering, offline support, and GitHub Pages deployment.
 
-## Development server
+## Local development
 
-To start a local development server, run:
-
-```bash
-ng serve
-```
-
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
-
-## Code scaffolding
-
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+Start the dev server:
 
 ```bash
-ng generate component component-name
+npm start
 ```
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+Build a production bundle:
 
 ```bash
-ng generate --help
+npm run build
 ```
 
-## Building
-
-To build the project run:
+Run the unit tests:
 
 ```bash
-ng build
+npm test -- --watch=false
 ```
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
+## GitHub Pages deployment
 
-## Running unit tests
+This repository is configured to deploy through GitHub Actions using [GitHub Pages custom workflows](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages).
 
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
+The workflow file is:
 
-```bash
-ng test
+```text
+.github/workflows/deploy-pages.yml
 ```
 
-## Running end-to-end tests
+What it does:
 
-For end-to-end (e2e) testing, run:
+1. Installs dependencies with `npm ci`.
+2. Runs the unit test suite before deployment.
+3. Builds Angular with the correct GitHub Pages base path from `actions/configure-pages`.
+4. Copies the built `index.html` to `404.html` so Angular client-side routes work when a GitHub Pages refresh lands on `/songs` or `/setlists/...`.
+5. Uploads the `dist/metronome-pwa/browser` output and deploys it to Pages.
 
-```bash
-ng e2e
-```
+First-time setup in GitHub:
 
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
+1. Push this repository to GitHub.
+2. Open the repository settings.
+3. Go to `Settings > Pages`.
+4. Ensure the site is configured to publish using `GitHub Actions`.
+5. Push to `main` or run the workflow manually from the Actions tab.
 
-## Additional Resources
+Notes:
 
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+- For a project site, the workflow automatically builds with `/<repo-name>/` as the Angular base href.
+- For a root `username.github.io` or `organization.github.io` repository, it automatically builds with `/`.
+- The Pages artifact is prepared by `prepare-pages.mjs`, which adds `.nojekyll` and the SPA fallback `404.html`.
+
+## Project structure
+
+- `src/app/core/metronome` contains the timing engine, scheduler worker, and click synthesis.
+- `src/app/features/player` contains the main player and advanced SVG visualizer.
+- `src/app/features/songs` contains song preset management.
+- `src/app/features/setlists` contains setlist management and drag-and-drop reordering.
+- `src/app/shared/storage` contains IndexedDB and localStorage persistence.
