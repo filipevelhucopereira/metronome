@@ -22,6 +22,14 @@ Run the unit tests:
 npm test -- --watch=false
 ```
 
+## Mobile audio
+
+On Safari-based browsers for iPhone and iPad that expose the Audio Session API, the metronome requests `playback` mode before starting Web Audio so the click can keep playing while the device is in Silent Mode.
+
+If the browser does not expose that API, or if iOS still refuses activation, the app now surfaces an in-app warning instead of failing silently. In that case, turn Silent Mode off and try again.
+
+Airplane mode is supported after the app has been opened once and cached offline. The metronome click is synthesized locally, so playback does not need the network after the PWA assets are already available on the device.
+
 ## GitHub Pages deployment
 
 This repository is configured to deploy through GitHub Actions using [GitHub Pages custom workflows](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages).

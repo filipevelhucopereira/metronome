@@ -75,6 +75,10 @@
         Next song
       </button>
     </div>
+
+    @if (audioSupportMessage(); as supportMessage) {
+      <p class="audio-support-note" role="status" aria-live="polite">{{ supportMessage }}</p>
+    }
   </article>
 
   <article class="panel settings-panel">

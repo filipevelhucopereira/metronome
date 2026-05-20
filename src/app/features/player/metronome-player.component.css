@@ -214,6 +214,16 @@
   font-size: 1.15rem;
 }
 
+.audio-support-note {
+  margin: 0;
+  padding: 0.85rem 1rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(255, 154, 82, 0.28);
+  background: rgba(255, 154, 82, 0.12);
+  color: rgb(255, 215, 189);
+  line-height: 1.45;
+}
+
 button:disabled {
   opacity: 0.45;
   cursor: not-allowed;

@@ -21,6 +21,7 @@ export class MetronomePlayerComponent {
   protected readonly beatOptions = BEATS_PER_BAR_OPTIONS;
   protected readonly subdivisionOptions = SUBDIVISION_OPTIONS;
   protected readonly rhythmOptions = RHYTHM_OPTIONS;
+  protected readonly audioSupportMessage = computed(() => this.metronome.audioSupportMessage());
 
   protected readonly meterCaption = computed(() => {
     const rhythmLabel = this.rhythmOptions.find((option) => option.value === this.metronome.rhythm())?.label ?? 'Straight';

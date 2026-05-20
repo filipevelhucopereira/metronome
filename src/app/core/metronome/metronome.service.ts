@@ -23,6 +23,28 @@ const LOOKAHEAD_SECONDS = 0.12;
 const START_LATENCY_SECONDS = 0.08;
 const SILENT_GAIN = 0.0001;
 
+type SilentModeSupportState = 'idle' | 'active' | 'unsupported' | 'failed';
+
+interface PlaybackAudioSession {
+  type: string;
+}
+
+interface NavigatorWithAudioSession extends Navigator {
+  audioSession?: PlaybackAudioSession;
+}
+
+function detectAppleMobileDevice(): boolean {
+  if (typeof navigator === 'undefined') {
+    return false;
+  }
+
+  const userAgent = navigator.userAgent ?? '';
+  const platform = navigator.platform ?? '';
+  const maxTouchPoints = navigator.maxTouchPoints ?? 0;
+
+  return /iPad|iPhone|iPod/i.test(userAgent) || (platform === 'MacIntel' && maxTouchPoints > 1);
+}
+
 @Injectable({ providedIn: 'root' })
 export class MetronomeService {
   private readonly storage = inject(LibraryStorageService);
@@ -43,10 +65,13 @@ export class MetronomeService {
   readonly activeSetlistId = signal<string | null>(null);
   readonly activeSetlistName = signal<string | null>(null);
   readonly activeSetlistIndex = signal(0);
+  readonly isAppleMobileDevice = signal(detectAppleMobileDevice());
+  readonly silentModeSupportState = signal<SilentModeSupportState>('idle');
 
   private readonly beatProgress = signal(0);
   private readonly flashStrength = signal(0);
   private readonly lastEmphasis = signal<'bar' | 'beat' | 'subdivision'>('bar');
+  private readonly audioActivationError = signal<string | null>(null);
 
   readonly currentSettings = computed<MetronomeSettings>(() =>
     normalizeMetronomeSettings({
@@ -60,6 +85,26 @@ export class MetronomeService {
 
   readonly pulsesPerBeat = computed(() => pulsesPerBeatForSettings(this.currentSettings()));
   readonly canAdvanceSetlist = computed(() => this.activeSetlistSongIds().length > this.activeSetlistIndex() + 1);
+  readonly audioSupportMessage = computed(() => {
+    const activationError = this.audioActivationError();
+
+    if (activationError) {
+      return activationError;
+    }
+
+    if (!this.isAppleMobileDevice()) {
+      return null;
+    }
+
+    switch (this.silentModeSupportState()) {
+      case 'unsupported':
+        return 'This iPhone browser does not expose silent-mode playback controls, so the metronome may stay muted while Silent Mode is enabled.';
+      case 'failed':
+        return 'Silent-mode playback could not be activated on this iPhone. Turn Silent Mode off and try again.';
+      default:
+        return null;
+    }
+  });
   readonly visualizer = computed<VisualizerSnapshot>(() => {
     const progress = this.beatProgress();
 
@@ -105,9 +150,11 @@ export class MetronomeService {
       return;
     }
 
+    this.audioActivationError.set(null);
+
     const context = await this.ensureAudioContext();
 
-    if (!context) {
+    if (!context || context.state !== 'running') {
       return;
     }
 
@@ -138,6 +185,7 @@ export class MetronomeService {
     this.closeTransportGate();
     this.stopScheduler();
     this.stopVisualizerLoop();
+    this.resetPlaybackAudioSession();
     this.visualQueue = [];
     this.prepareNextCursorFromDisplay();
     this.beatProgress.set(0);
@@ -307,14 +355,24 @@ export class MetronomeService {
       return null;
     }
 
+    this.configurePlaybackAudioSession();
+
     if (!this.audioContext) {
       const AudioContextCtor = window.AudioContext ?? (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
 
       if (!AudioContextCtor) {
+        this.markAudioActivationFailure('This browser does not expose Web Audio output for the metronome.');
         return null;
       }
 
-      this.audioContext = new AudioContextCtor();
+      try {
+        this.audioContext = new AudioContextCtor();
+      } catch (error) {
+        console.error('[Metronome] Failed to create an AudioContext.', error);
+        this.markAudioActivationFailure('Audio playback could not be initialized in this browser.');
+        return null;
+      }
+
       this.masterGain = this.audioContext.createGain();
       this.transportGain = this.audioContext.createGain();
 
@@ -326,7 +384,26 @@ export class MetronomeService {
     }
 
     if (this.audioContext.state === 'suspended') {
-      await this.audioContext.resume();
+      try {
+        await this.audioContext.resume();
+      } catch (error) {
+        console.error('[Metronome] AudioContext.resume() failed.', error);
+        this.markAudioActivationFailure(
+          this.isAppleMobileDevice()
+            ? 'Audio playback could not start. If your iPhone is in Silent Mode, turn it off and try again.'
+            : 'Audio playback could not start in this browser.',
+        );
+        return null;
+      }
+    }
+
+    if (this.audioContext.state !== 'running') {
+      this.markAudioActivationFailure(
+        this.isAppleMobileDevice()
+          ? 'Audio playback is still suspended on this iPhone browser. Turn Silent Mode off and try again.'
+          : 'Audio playback is still suspended in this browser.',
+      );
+      return null;
     }
 
     this.syncMasterGain();
@@ -382,7 +459,7 @@ export class MetronomeService {
     const context = this.audioContext;
     const output = this.masterGain;
 
-    if (!context || !output || !this.isPlaying()) {
+    if (!context || !output || !this.isPlaying() || context.state !== 'running') {
       return;
     }
 
@@ -567,6 +644,7 @@ export class MetronomeService {
   private dispose(): void {
     this.stopScheduler();
     this.stopVisualizerLoop();
+    this.resetPlaybackAudioSession();
 
     if (this.preferencesTimeoutId !== null) {
       clearTimeout(this.preferencesTimeoutId);
@@ -575,5 +653,62 @@ export class MetronomeService {
 
     this.schedulerWorker?.terminate();
     this.schedulerWorker = null;
+  }
+
+  private configurePlaybackAudioSession(): void {
+    if (!this.isAppleMobileDevice()) {
+      return;
+    }
+
+    const audioSession = this.getPlaybackAudioSession();
+
+    if (!audioSession) {
+      this.silentModeSupportState.set('unsupported');
+      return;
+    }
+
+    try {
+      if (audioSession.type !== 'playback') {
+        audioSession.type = 'playback';
+      }
+
+      this.silentModeSupportState.set('active');
+    } catch (error) {
+      console.error('[Metronome] Failed to activate playback audio session.', error);
+      this.silentModeSupportState.set('failed');
+      this.audioActivationError.set('Silent-mode playback could not be activated on this iPhone browser.');
+    }
+  }
+
+  private resetPlaybackAudioSession(): void {
+    const audioSession = this.getPlaybackAudioSession();
+
+    if (!audioSession) {
+      return;
+    }
+
+    try {
+      if (audioSession.type === 'playback') {
+        audioSession.type = 'auto';
+      }
+    } catch (error) {
+      console.warn('[Metronome] Failed to restore the browser audio session.', error);
+    }
+  }
+
+  private getPlaybackAudioSession(): PlaybackAudioSession | null {
+    if (typeof navigator === 'undefined') {
+      return null;
+    }
+
+    return (navigator as NavigatorWithAudioSession).audioSession ?? null;
+  }
+
+  private markAudioActivationFailure(message: string): void {
+    this.audioActivationError.set(message);
+
+    if (this.isAppleMobileDevice() && this.silentModeSupportState() !== 'unsupported') {
+      this.silentModeSupportState.set('failed');
+    }
   }
 }
