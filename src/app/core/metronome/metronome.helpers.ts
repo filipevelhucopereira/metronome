@@ -22,17 +22,20 @@ export interface ScheduledTick {
   emphasis: ClickEmphasis;
 }
 
-export interface VisualizerSnapshot {
+export interface VisualizerStructure {
   isPlaying: boolean;
   currentBeatInBar: number;
   beatsPerBar: number;
   currentPulseInBeat: number;
   pulsesPerBeat: number;
+  emphasis: ClickEmphasis;
+  nextBeatInBar: number | null;
+}
+
+export interface VisualizerMotion {
   beatProgress: number;
   pendulumOffset: number;
   flashStrength: number;
-  emphasis: ClickEmphasis;
-  nextBeatInBar: number | null;
 }
 
 export function clampTempo(value: number): number {

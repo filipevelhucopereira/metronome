@@ -1,7 +1,7 @@
 import { DestroyRef, Injectable, NgZone, computed, inject, signal } from '@angular/core';
 
 import { LibraryStorageService } from '../../shared/storage/library-storage.service';
-import { DEFAULT_APP_PREFERENCES } from '../../shared/models/setlist.model';
+import { DEFAULT_APP_PREFERENCES, type AppPreferences } from '../../shared/models/setlist.model';
 import { DEFAULT_METRONOME_SETTINGS, type MetronomeSettings, type RhythmOption, type Song, type SubdivisionOption } from '../../shared/models/song.model';
 import {
   calculateTapTempo,
@@ -14,7 +14,8 @@ import {
   pulseDurationSeconds,
   pulsesPerBeatForSettings,
   type ScheduledTick,
-  type VisualizerSnapshot,
+  type VisualizerMotion,
+  type VisualizerStructure,
 } from './metronome.helpers';
 import { scheduleClickVoice } from './click-voice';
 
@@ -22,8 +23,17 @@ const SCHEDULER_WAKE_MS = 25;
 const LOOKAHEAD_SECONDS = 0.12;
 const START_LATENCY_SECONDS = 0.08;
 const SILENT_GAIN = 0.0001;
+const VISUAL_TICK_TOLERANCE_SECONDS = 0.001;
 
 type SilentModeSupportState = 'idle' | 'active' | 'unsupported' | 'failed';
+
+type RestoredSetlistSessionResult =
+  | {
+      found: true;
+      setlist: { id: string; name: string; songIds: string[] };
+      activeSetlistIndex: number;
+    }
+  | { found: false };
 
 interface PlaybackAudioSession {
   type: string;
@@ -71,6 +81,7 @@ export class MetronomeService {
   private readonly beatProgress = signal(0);
   private readonly flashStrength = signal(0);
   private readonly lastEmphasis = signal<'bar' | 'beat' | 'subdivision'>('bar');
+  private readonly nextBeatInBar = signal<number | null>(null);
   private readonly audioActivationError = signal<string | null>(null);
 
   readonly currentSettings = computed<MetronomeSettings>(() =>
@@ -105,20 +116,22 @@ export class MetronomeService {
         return null;
     }
   });
-  readonly visualizer = computed<VisualizerSnapshot>(() => {
+  readonly visualizerStructure = computed<VisualizerStructure>(() => ({
+    isPlaying: this.isPlaying(),
+    currentBeatInBar: this.currentBeatInBar(),
+    beatsPerBar: this.beatsPerBar(),
+    currentPulseInBeat: this.currentPulseInBeat(),
+    pulsesPerBeat: this.pulsesPerBeat(),
+    emphasis: this.lastEmphasis(),
+    nextBeatInBar: this.nextBeatInBar(),
+  }));
+  readonly visualizerMotion = computed<VisualizerMotion>(() => {
     const progress = this.beatProgress();
 
     return {
-      isPlaying: this.isPlaying(),
-      currentBeatInBar: this.currentBeatInBar(),
-      beatsPerBar: this.beatsPerBar(),
-      currentPulseInBeat: this.currentPulseInBeat(),
-      pulsesPerBeat: this.pulsesPerBeat(),
       beatProgress: progress,
       pendulumOffset: Math.sin((progress * Math.PI * 2) - (Math.PI / 2)),
       flashStrength: this.flashStrength(),
-      emphasis: this.lastEmphasis(),
-      nextBeatInBar: this.visualQueue[0]?.beatInBar ?? null,
     };
   });
 
@@ -139,6 +152,7 @@ export class MetronomeService {
   private hasTriggeredPlayback = false;
   private lastTriggeredTickTime = 0;
   private visualQueue: ScheduledTick[] = [];
+  private visualQueueHead = 0;
 
   constructor() {
     void this.restorePreferences();
@@ -168,7 +182,7 @@ export class MetronomeService {
     }
 
     this.nextPulseTime = context.currentTime + START_LATENCY_SECONDS;
-    this.visualQueue = [];
+    this.resetVisualQueue();
     this.beatProgress.set(0);
     this.flashStrength.set(0);
     this.schedulePendingPulses();
@@ -186,7 +200,7 @@ export class MetronomeService {
     this.stopScheduler();
     this.stopVisualizerLoop();
     this.resetPlaybackAudioSession();
-    this.visualQueue = [];
+    this.resetVisualQueue();
     this.prepareNextCursorFromDisplay();
     this.beatProgress.set(0);
     this.flashStrength.set(0);
@@ -241,28 +255,7 @@ export class MetronomeService {
       return null;
     }
 
-    const wasPlaying = this.isPlaying();
-
-    if (wasPlaying) {
-      this.pause();
-    }
-
-    this.commitSettings(song);
-    this.activeSongId.set(song.id);
-    this.activeSongName.set(song.name);
-
-    if (!preserveSetlist) {
-      this.activeSetlistId.set(null);
-      this.activeSetlistName.set(null);
-      this.activeSetlistIndex.set(0);
-      this.activeSetlistSongIds.set([]);
-    }
-
-    this.schedulePreferencesSave();
-
-    if (wasPlaying) {
-      await this.play();
-    }
+    await this.applyLoadedSong(song, { preserveSetlist, persistPreferences: true });
 
     return song;
   }
@@ -273,8 +266,7 @@ export class MetronomeService {
       ...this.currentSettings(),
     });
 
-    this.activeSongId.set(song.id);
-    this.activeSongName.set(song.name);
+    this.applyActiveSongSession(song.id, song.name);
     this.schedulePreferencesSave();
     return song;
   }
@@ -286,18 +278,16 @@ export class MetronomeService {
       return;
     }
 
-    const safeIndex = Math.max(0, Math.min(startIndex, Math.max(setlist.entries.length - 1, 0)));
-    this.activeSetlistId.set(setlist.id);
-    this.activeSetlistName.set(setlist.name);
-    this.activeSetlistIndex.set(safeIndex);
-    this.activeSetlistSongIds.set([...setlist.songIds]);
-    this.schedulePreferencesSave();
+    const safeIndex = this.clampSetlistIndex(startIndex, setlist.entries.length);
+    this.applyActiveSetlistSession(setlist, safeIndex);
 
     const activeEntry = setlist.entries[safeIndex];
 
     if (activeEntry) {
-      await this.loadSong(activeEntry.song, true);
+      await this.applyLoadedSong(activeEntry.song, { preserveSetlist: true, persistPreferences: false });
     }
+
+    this.schedulePreferencesSave();
   }
 
   async nextSong(): Promise<void> {
@@ -309,29 +299,25 @@ export class MetronomeService {
   }
 
   async reorderSetlistSongs(setlistId: string, songIds: string[]): Promise<void> {
-    const updatedSetlist = await this.storage.reorderSetlistSongs(setlistId, songIds);
-
-    if (!updatedSetlist) {
+    if (this.activeSetlistId() !== setlistId) {
       return;
     }
 
-    if (this.activeSetlistId() === updatedSetlist.id) {
-      this.activeSetlistSongIds.set([...updatedSetlist.songIds]);
+    this.activeSetlistSongIds.set([...songIds]);
 
-      if (this.activeSongId()) {
-        const nextIndex = updatedSetlist.songIds.indexOf(this.activeSongId()!);
-        this.activeSetlistIndex.set(nextIndex >= 0 ? nextIndex : 0);
-      }
-
-      this.schedulePreferencesSave();
+    if (this.activeSongId()) {
+      const nextIndex = songIds.indexOf(this.activeSongId()!);
+      this.activeSetlistIndex.set(nextIndex >= 0 ? nextIndex : 0);
     }
+
+    this.schedulePreferencesSave();
   }
 
   moveActiveSetlistSong(fromIndex: number, toIndex: number): string[] {
     return moveItem(this.activeSetlistSongIds(), fromIndex, toIndex);
   }
 
-  private commitSettings(settings: Partial<MetronomeSettings>): void {
+  private commitSettings(settings: Partial<MetronomeSettings>, persistPreferences = true): void {
     const normalized = normalizeMetronomeSettings(settings);
     this.tempo.set(normalized.tempo);
     this.beatsPerBar.set(normalized.beatsPerBar);
@@ -340,7 +326,10 @@ export class MetronomeService {
     this.volume.set(normalized.volume);
     this.syncMasterGain();
     this.syncCursorBounds();
-    this.schedulePreferencesSave();
+
+    if (persistPreferences) {
+      this.schedulePreferencesSave();
+    }
   }
 
   private syncCursorBounds(): void {
@@ -484,6 +473,7 @@ export class MetronomeService {
         pulsesPerBeat,
         emphasis,
       });
+      this.syncNextBeatInBar();
 
       this.nextPulseTime += pulseDurationSeconds(settings, this.pulseCursor);
       this.pulseCursor += 1;
@@ -507,18 +497,19 @@ export class MetronomeService {
       }
 
       const currentTime = this.audioContext?.currentTime ?? 0;
+      let tick = this.dequeueDueVisualTick(currentTime);
 
-      while (this.visualQueue.length > 0 && this.visualQueue[0].time <= currentTime + 0.001) {
-        const tick = this.visualQueue.shift()!;
+      while (tick) {
         this.currentBeatInBar.set(tick.beatInBar);
         this.currentPulseInBeat.set(tick.pulseInBeat);
         this.lastTriggeredTickTime = tick.time;
         this.lastEmphasis.set(tick.emphasis);
         this.flashStrength.set(1);
         this.hasTriggeredPlayback = true;
+        tick = this.dequeueDueVisualTick(currentTime);
       }
 
-      const nextTick = this.visualQueue[0] ?? null;
+      const nextTick = this.peekVisualTick();
       const defaultInterval = pulseDurationSeconds(this.currentSettings(), Math.max(0, this.currentPulseInBeat() - 1));
       const interval = nextTick ? Math.max(nextTick.time - this.lastTriggeredTickTime, 0.001) : defaultInterval;
       const progress = this.lastTriggeredTickTime > 0 ? Math.min(1, Math.max(0, (currentTime - this.lastTriggeredTickTime) / interval)) : 0;
@@ -586,6 +577,46 @@ export class MetronomeService {
     this.currentPulseInBeat.set(1);
     this.lastTriggeredTickTime = 0;
     this.hasTriggeredPlayback = false;
+    this.nextBeatInBar.set(null);
+  }
+
+  private resetVisualQueue(): void {
+    this.visualQueue = [];
+    this.visualQueueHead = 0;
+    this.nextBeatInBar.set(null);
+  }
+
+  private peekVisualTick(): ScheduledTick | null {
+    return this.visualQueue[this.visualQueueHead] ?? null;
+  }
+
+  private dequeueDueVisualTick(currentTime: number): ScheduledTick | null {
+    const tick = this.peekVisualTick();
+
+    if (!tick || tick.time > currentTime + VISUAL_TICK_TOLERANCE_SECONDS) {
+      return null;
+    }
+
+    this.visualQueueHead += 1;
+    this.compactVisualQueue();
+    this.syncNextBeatInBar();
+    return tick;
+  }
+
+  private compactVisualQueue(): void {
+    if (this.visualQueueHead === this.visualQueue.length) {
+      this.resetVisualQueue();
+      return;
+    }
+
+    if (this.visualQueueHead > 32 && this.visualQueueHead * 2 >= this.visualQueue.length) {
+      this.visualQueue = this.visualQueue.slice(this.visualQueueHead);
+      this.visualQueueHead = 0;
+    }
+  }
+
+  private syncNextBeatInBar(): void {
+    this.nextBeatInBar.set(this.peekVisualTick()?.beatInBar ?? null);
   }
 
   private prepareNextCursorFromDisplay(): void {
@@ -608,48 +639,151 @@ export class MetronomeService {
     this.pulseCursor = nextPulseCursor;
   }
 
-  private schedulePreferencesSave(): void {
-    if (this.preferencesTimeoutId !== null) {
-      clearTimeout(this.preferencesTimeoutId);
+  private clampSetlistIndex(index: number, songCount: number): number {
+    return Math.max(0, Math.min(index, Math.max(songCount - 1, 0)));
+  }
+
+  private clearActiveSetlistSession(): void {
+    this.activeSetlistId.set(null);
+    this.activeSetlistName.set(null);
+    this.activeSetlistIndex.set(0);
+    this.activeSetlistSongIds.set([]);
+  }
+
+  private applyActiveSetlistSession(
+    setlist: { id: string; name: string; songIds: string[] },
+    activeSetlistIndex: number,
+  ): void {
+    this.activeSetlistId.set(setlist.id);
+    this.activeSetlistName.set(setlist.name);
+    this.activeSetlistIndex.set(activeSetlistIndex);
+    this.activeSetlistSongIds.set([...setlist.songIds]);
+  }
+
+  private applyActiveSongSession(songId: string | null, songName: string | null): void {
+    this.activeSongId.set(songId);
+    this.activeSongName.set(songName);
+  }
+
+  private async applyLoadedSong(
+    song: Song,
+    options: { preserveSetlist: boolean; persistPreferences: boolean },
+  ): Promise<void> {
+    const wasPlaying = this.isPlaying();
+
+    if (wasPlaying) {
+      this.pause();
     }
+
+    this.commitSettings(song, false);
+    this.applyActiveSongSession(song.id, song.name);
+
+    if (!options.preserveSetlist) {
+      this.clearActiveSetlistSession();
+    }
+
+    if (options.persistPreferences) {
+      this.schedulePreferencesSave();
+    }
+
+    if (wasPlaying) {
+      await this.play();
+    }
+  }
+
+  private createPreferenceSnapshot(): AppPreferences {
+    return {
+      lastTransport: this.currentSettings(),
+      lastSongId: this.activeSongId(),
+      lastSongName: this.activeSongName(),
+      lastSetlistId: this.activeSetlistId(),
+      lastSetlistName: this.activeSetlistName(),
+      activeSetlistIndex: this.activeSetlistIndex(),
+    };
+  }
+
+  private clearScheduledPreferencesSave(): void {
+    if (this.preferencesTimeoutId === null) {
+      return;
+    }
+
+    clearTimeout(this.preferencesTimeoutId);
+    this.preferencesTimeoutId = null;
+  }
+
+  private persistCurrentPreferences(): void {
+    void this.storage.savePreferences(this.createPreferenceSnapshot());
+  }
+
+  private restoredSetlistSessionMissing(): RestoredSetlistSessionResult {
+    return { found: false };
+  }
+
+  private restoredSetlistSessionFound(
+    setlist: { id: string; name: string; songIds: string[] },
+    activeSetlistIndex: number,
+  ): RestoredSetlistSessionResult {
+    return { found: true, setlist, activeSetlistIndex };
+  }
+
+  private applyRestoredTransport(settings: Partial<MetronomeSettings> | undefined): void {
+    this.commitSettings(settings ?? DEFAULT_APP_PREFERENCES.lastTransport, false);
+  }
+
+  private async applyRestoredPreferences(preferences: AppPreferences): Promise<void> {
+    this.applyRestoredTransport(preferences.lastTransport);
+    this.applyActiveSongSession(preferences.lastSongId, preferences.lastSongName);
+    await this.restoreActiveSetlistSession(preferences);
+  }
+
+  private applyRestoredSetlistSession(result: RestoredSetlistSessionResult): void {
+    if (!result.found) {
+      this.clearActiveSetlistSession();
+      return;
+    }
+
+    this.applyActiveSetlistSession(result.setlist, result.activeSetlistIndex);
+  }
+
+  private resolveRestoredSetlistSession(
+    preferences: AppPreferences,
+    setlist: { id: string; name: string; songIds: string[] } | null,
+  ): RestoredSetlistSessionResult {
+    if (!preferences.lastSetlistId || !setlist) {
+      return this.restoredSetlistSessionMissing();
+    }
+
+    return this.restoredSetlistSessionFound(
+      setlist,
+      this.clampSetlistIndex(preferences.activeSetlistIndex, setlist.songIds.length),
+    );
+  }
+
+  private async restoreActiveSetlistSession(preferences: AppPreferences): Promise<void> {
+    const setlist = preferences.lastSetlistId ? await this.storage.getSetlist(preferences.lastSetlistId) : null;
+    const result = this.resolveRestoredSetlistSession(preferences, setlist);
+    this.applyRestoredSetlistSession(result);
+  }
+
+  private schedulePreferencesSave(): void {
+    this.clearScheduledPreferencesSave();
 
     this.preferencesTimeoutId = window.setTimeout(() => {
       this.preferencesTimeoutId = null;
-      void this.storage.savePreferences({
-        lastTransport: this.currentSettings(),
-        lastSongId: this.activeSongId(),
-        lastSongName: this.activeSongName(),
-        lastSetlistId: this.activeSetlistId(),
-        lastSetlistName: this.activeSetlistName(),
-        activeSetlistIndex: this.activeSetlistIndex(),
-      });
+      this.persistCurrentPreferences();
     }, 160);
   }
 
   private async restorePreferences(): Promise<void> {
     const preferences = await this.storage.loadPreferences();
-    this.commitSettings(preferences.lastTransport ?? DEFAULT_APP_PREFERENCES.lastTransport);
-    this.activeSongId.set(preferences.lastSongId);
-    this.activeSongName.set(preferences.lastSongName);
-    this.activeSetlistId.set(preferences.lastSetlistId);
-    this.activeSetlistName.set(preferences.lastSetlistName);
-    this.activeSetlistIndex.set(preferences.activeSetlistIndex);
-
-    if (preferences.lastSetlistId) {
-      const setlist = await this.storage.getSetlist(preferences.lastSetlistId);
-      this.activeSetlistSongIds.set(setlist?.songIds ?? []);
-    }
+    await this.applyRestoredPreferences(preferences);
   }
 
   private dispose(): void {
     this.stopScheduler();
     this.stopVisualizerLoop();
     this.resetPlaybackAudioSession();
-
-    if (this.preferencesTimeoutId !== null) {
-      clearTimeout(this.preferencesTimeoutId);
-      this.preferencesTimeoutId = null;
-    }
+    this.clearScheduledPreferencesSave();
 
     this.schedulerWorker?.terminate();
     this.schedulerWorker = null;

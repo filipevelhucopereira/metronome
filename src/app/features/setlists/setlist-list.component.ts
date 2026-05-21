@@ -3,8 +3,8 @@ import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 
 import { MetronomeService } from '../../core/metronome/metronome.service';
-import { LibraryStorageService } from '../../shared/storage/library-storage.service';
 import { type Setlist } from '../../shared/models/setlist.model';
+import { LibraryStoreService } from '../../shared/storage/library-store.service';
 
 type SetlistFilterValue = 'all' | 'active' | 'recent';
 
@@ -16,11 +16,11 @@ type SetlistFilterValue = 'all' | 'active' | 'recent';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SetlistListComponent {
-  private readonly storage = inject(LibraryStorageService);
+  private readonly libraryStore = inject(LibraryStoreService);
   private readonly metronome = inject(MetronomeService);
   private readonly router = inject(Router);
 
-  protected readonly setlists = signal<Setlist[]>([]);
+  protected readonly setlists = this.libraryStore.setlists;
   protected readonly setlistFilters = [
     { value: 'all', label: 'All' },
     { value: 'active', label: 'Active' },
@@ -29,6 +29,11 @@ export class SetlistListComponent {
   protected readonly selectedFilter = signal<SetlistFilterValue>('all');
   protected readonly currentSetlistId = computed(() => this.metronome.activeSetlistId());
   protected readonly activeSetlist = computed(() => this.setlists().find((setlist) => setlist.id === this.currentSetlistId()) ?? null);
+  protected readonly recentSetlists = computed(() => {
+    const setlists = [...this.setlists()];
+    setlists.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+    return setlists;
+  });
   protected readonly filteredSetlists = computed(() => {
     const filter = this.selectedFilter();
     const setlists = this.setlists();
@@ -39,7 +44,7 @@ export class SetlistListComponent {
     }
 
     if (filter === 'recent') {
-      return [...setlists].sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+      return this.recentSetlists();
     }
 
     return setlists;
@@ -50,7 +55,7 @@ export class SetlistListComponent {
   });
 
   constructor() {
-    void this.refresh();
+    void this.libraryStore.ensureSetlistsLoaded();
   }
 
   protected async createSetlist(): Promise<void> {
@@ -59,13 +64,12 @@ export class SetlistListComponent {
       return;
     }
 
-    const setlist = await this.storage.saveSetlist({
+    const setlist = await this.libraryStore.saveSetlist({
       name: this.createControl.getRawValue().trim(),
       songIds: [],
     });
 
     this.createControl.reset('');
-    await this.refresh();
     await this.router.navigate(['/setlists', setlist.id]);
   }
 
@@ -75,8 +79,7 @@ export class SetlistListComponent {
   }
 
   protected async deleteSetlist(setlistId: string): Promise<void> {
-    await this.storage.deleteSetlist(setlistId);
-    await this.refresh();
+    await this.libraryStore.deleteSetlist(setlistId);
   }
 
   protected setFilter(value: SetlistFilterValue): void {
@@ -85,9 +88,5 @@ export class SetlistListComponent {
 
   protected previewWidth(songCount: number): string {
     return `${Math.min(82, 18 + (songCount * 9))}%`;
-  }
-
-  private async refresh(): Promise<void> {
-    this.setlists.set(await this.storage.listSetlists());
   }
 }

@@ -37,7 +37,11 @@
           <p class="tempo-caption">{{ beatCaption() }}<span class="tempo-caption__dot"></span>{{ pulseCaption() }}</p>
         </div>
 
-        <app-metronome-visualizer class="tempo-stage__visualizer" [snapshot]="metronome.visualizer()" />
+        <app-metronome-visualizer
+          class="tempo-stage__visualizer"
+          [structure]="metronome.visualizerStructure()"
+          [motion]="metronome.visualizerMotion()"
+        />
       </div>
 
       <div class="beat-strip" aria-label="Current beat position">

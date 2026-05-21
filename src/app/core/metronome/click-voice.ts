@@ -7,37 +7,67 @@ export interface ClickVoiceOptions {
   emphasis: ClickEmphasis;
 }
 
-const CLICK_PROFILE: Record<ClickEmphasis, { frequency: number; gain: number; decay: number; type: OscillatorType }> = {
-  bar: { frequency: 1760, gain: 0.55, decay: 0.052, type: 'square' },
-  beat: { frequency: 1320, gain: 0.38, decay: 0.044, type: 'triangle' },
-  subdivision: { frequency: 980, gain: 0.28, decay: 0.034, type: 'triangle' },
+const CLICK_PROFILE: Record<ClickEmphasis, { frequency: number; gain: number; decay: number; overtone: number; overtoneGain: number }> = {
+  bar: { frequency: 1760, gain: 0.55, decay: 0.052, overtone: 1.85, overtoneGain: 0.34 },
+  beat: { frequency: 1320, gain: 0.38, decay: 0.044, overtone: 1.6, overtoneGain: 0.24 },
+  subdivision: { frequency: 980, gain: 0.28, decay: 0.034, overtone: 1.45, overtoneGain: 0.16 },
 };
+
+const BUFFER_PADDING_SECONDS = 0.02;
+const MIN_GAIN = 0.0001;
+const clickBuffers = new WeakMap<BaseAudioContext, Partial<Record<ClickEmphasis, AudioBuffer>>>();
+
+function buildClickBuffer(context: BaseAudioContext, emphasis: ClickEmphasis): AudioBuffer {
+  const profile = CLICK_PROFILE[emphasis];
+  const length = Math.max(1, Math.ceil((profile.decay + BUFFER_PADDING_SECONDS) * context.sampleRate));
+  const buffer = context.createBuffer(1, length, context.sampleRate);
+  const channel = buffer.getChannelData(0);
+
+  for (let index = 0; index < length; index += 1) {
+    const time = index / context.sampleRate;
+    const decayProgress = Math.min(1, time / profile.decay);
+    const envelope = Math.exp(-decayProgress * 7.5);
+    const body = Math.sin(time * Math.PI * 2 * profile.frequency);
+    const overtone = Math.sin(time * Math.PI * 2 * profile.frequency * profile.overtone);
+
+    channel[index] = (body + (overtone * profile.overtoneGain)) * envelope;
+  }
+
+  return buffer;
+}
+
+function getClickBuffer(context: BaseAudioContext, emphasis: ClickEmphasis): AudioBuffer {
+  let cachedBuffers = clickBuffers.get(context);
+
+  if (!cachedBuffers) {
+    cachedBuffers = {};
+
+    clickBuffers.set(context, cachedBuffers);
+  }
+
+  const cachedBuffer = cachedBuffers[emphasis];
+
+  if (cachedBuffer) {
+    return cachedBuffer;
+  }
+
+  const buffer = buildClickBuffer(context, emphasis);
+  cachedBuffers[emphasis] = buffer;
+  return buffer;
+}
 
 export function scheduleClickVoice(context: BaseAudioContext, options: ClickVoiceOptions): void {
   const profile = CLICK_PROFILE[options.emphasis];
+  const source = context.createBufferSource();
   const gainNode = context.createGain();
-  const oscillator = context.createOscillator();
-  const transientOscillator = context.createOscillator();
-  const peakGain = Math.max(0.0001, profile.gain * Math.max(0, options.volume));
+  const peakGain = Math.max(MIN_GAIN, profile.gain * Math.max(0, options.volume));
 
-  oscillator.type = profile.type;
-  oscillator.frequency.setValueAtTime(profile.frequency, options.when);
-  oscillator.frequency.exponentialRampToValueAtTime(profile.frequency * 0.6, options.when + profile.decay);
+  source.buffer = getClickBuffer(context, options.emphasis);
+  gainNode.gain.setValueAtTime(peakGain, options.when);
 
-  transientOscillator.type = 'sine';
-  transientOscillator.frequency.setValueAtTime(profile.frequency * 1.85, options.when);
-  transientOscillator.frequency.exponentialRampToValueAtTime(profile.frequency * 0.9, options.when + profile.decay * 0.5);
-
-  gainNode.gain.setValueAtTime(0.0001, options.when);
-  gainNode.gain.exponentialRampToValueAtTime(peakGain, options.when + 0.0025);
-  gainNode.gain.exponentialRampToValueAtTime(0.0001, options.when + profile.decay);
-
-  oscillator.connect(gainNode);
-  transientOscillator.connect(gainNode);
+  source.connect(gainNode);
   gainNode.connect(options.output);
 
-  oscillator.start(options.when);
-  transientOscillator.start(options.when);
-  oscillator.stop(options.when + profile.decay + 0.02);
-  transientOscillator.stop(options.when + profile.decay * 0.6 + 0.02);
+  source.start(options.when);
+  source.stop(options.when + source.buffer.duration);
 }

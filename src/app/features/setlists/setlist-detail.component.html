@@ -89,7 +89,7 @@
           (cdkDropListDropped)="dropSong($event)"
         >
           @for (entry of currentSetlist.entries; track entry.id) {
-            <article class="entry-card" cdkDrag [class.is-current]="isCurrentEntry(entry)" [class.is-next]="isNextEntry(entry)">
+            <article class="entry-card" cdkDrag [class.is-current]="entry.order === currentOrder()" [class.is-next]="entry.order === nextOrder()">
               <div class="entry-order" aria-hidden="true">
                 <span class="entry-order__label">Order</span>
                 <span class="entry-order__index">{{ entry.order + 1 }}</span>
@@ -99,17 +99,17 @@
                 <div class="entry-main">
                   <div class="entry-copy">
                     <h2>{{ entry.song.name }}</h2>
-                    @if (isCurrentEntry(entry)) {
+                    @if (entry.order === currentOrder()) {
                       <span class="sr-only">Current song in the active setlist.</span>
-                    } @else if (isNextEntry(entry)) {
+                    } @else if (entry.order === nextOrder()) {
                       <span class="sr-only">Next song in the active setlist.</span>
                     }
                   </div>
 
                   <div class="entry-flags">
-                    @if (isCurrentEntry(entry)) {
+                    @if (entry.order === currentOrder()) {
                       <span class="status-badge status-badge--accent">Live</span>
-                    } @else if (isNextEntry(entry)) {
+                    } @else if (entry.order === nextOrder()) {
                       <span class="status-badge status-badge--muted">Next</span>
                     }
                   </div>

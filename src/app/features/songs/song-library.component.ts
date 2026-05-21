@@ -2,8 +2,8 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { Router } from '@angular/router';
 
 import { MetronomeService } from '../../core/metronome/metronome.service';
-import { LibraryStorageService } from '../../shared/storage/library-storage.service';
 import { type RhythmOption, type Song, type SongDraft } from '../../shared/models/song.model';
+import { LibraryStoreService } from '../../shared/storage/library-store.service';
 import { SongEditorComponent } from './song-editor.component';
 
 type SongFilterValue = 'all' | RhythmOption;
@@ -16,11 +16,11 @@ type SongFilterValue = 'all' | RhythmOption;
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SongLibraryComponent {
-  private readonly storage = inject(LibraryStorageService);
+  private readonly libraryStore = inject(LibraryStoreService);
   private readonly metronome = inject(MetronomeService);
   private readonly router = inject(Router);
 
-  protected readonly songs = signal<Song[]>([]);
+  protected readonly songs = this.libraryStore.songs;
   protected readonly editorOpen = signal(false);
   protected readonly editingSong = signal<Song | null>(null);
   protected readonly rhythmFilters = [
@@ -43,7 +43,7 @@ export class SongLibraryComponent {
   });
 
   constructor() {
-    void this.refresh();
+    void this.libraryStore.ensureSongsLoaded();
   }
 
   protected openNewSong(): void {
@@ -67,8 +67,7 @@ export class SongLibraryComponent {
 
   protected async saveSong(draft: SongDraft): Promise<void> {
     const existingSong = this.editingSong();
-    await this.storage.saveSong(existingSong ? { ...existingSong, ...draft } : draft);
-    await this.refresh();
+    await this.libraryStore.saveSong(existingSong ? { ...existingSong, ...draft } : draft);
     this.closeEditor();
   }
 
@@ -78,16 +77,14 @@ export class SongLibraryComponent {
   }
 
   protected async duplicateSong(songId: string): Promise<void> {
-    await this.storage.duplicateSong(songId);
-    await this.refresh();
+    const duplicatedSong = await this.libraryStore.duplicateSong(songId);
+
+    if (!duplicatedSong) {
+      return;
+    }
   }
 
   protected async deleteSong(songId: string): Promise<void> {
-    await this.storage.deleteSong(songId);
-    await this.refresh();
-  }
-
-  private async refresh(): Promise<void> {
-    this.songs.set(await this.storage.listSongs());
+    await this.libraryStore.deleteSong(songId);
   }
 }

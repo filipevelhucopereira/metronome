@@ -32,14 +32,14 @@
         cy="60"
         r="22"
         class="pulse-core"
-        [class.is-bar]="snapshot().emphasis === 'bar'"
-        [class.is-beat]="snapshot().emphasis === 'beat'"
+        [class.is-bar]="structure().emphasis === 'bar'"
+        [class.is-beat]="structure().emphasis === 'beat'"
       ></circle>
     </g>
 
     <circle cx="60" cy="60" r="6" class="pivot"></circle>
 
-    <text x="60" y="65" class="beat-text">{{ snapshot().currentBeatInBar }}</text>
-    <text x="60" y="81" class="beat-caption">/{{ snapshot().beatsPerBar }}</text>
+    <text x="60" y="65" class="beat-text">{{ structure().currentBeatInBar }}</text>
+    <text x="60" y="81" class="beat-caption">/{{ structure().beatsPerBar }}</text>
   </svg>
 </div>

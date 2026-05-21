@@ -3,11 +3,11 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
-import { moveItem } from '../../core/metronome/metronome.helpers';
+import { moveItem, resolveSetlist } from '../../core/metronome/metronome.helpers';
 import { MetronomeService } from '../../core/metronome/metronome.service';
-import { type ResolvedSetlist, type ResolvedSetlistEntry } from '../../shared/models/setlist.model';
+import { type ResolvedSetlist, type ResolvedSetlistEntry, type Setlist } from '../../shared/models/setlist.model';
 import { type Song } from '../../shared/models/song.model';
-import { LibraryStorageService } from '../../shared/storage/library-storage.service';
+import { LibraryStoreService } from '../../shared/storage/library-store.service';
 
 @Component({
   selector: 'app-setlist-detail',
@@ -19,7 +19,7 @@ import { LibraryStorageService } from '../../shared/storage/library-storage.serv
 export class SetlistDetailComponent {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
-  private readonly storage = inject(LibraryStorageService);
+  private readonly libraryStore = inject(LibraryStoreService);
   private readonly metronome = inject(MetronomeService);
 
   protected readonly setlist = signal<ResolvedSetlist | null>(null);
@@ -28,6 +28,8 @@ export class SetlistDetailComponent {
   protected readonly activeSetlistId = computed(() => this.metronome.activeSetlistId());
   protected readonly activeSetlistIndex = computed(() => this.metronome.activeSetlistIndex());
   protected readonly isActiveSetlist = computed(() => this.setlist()?.id === this.activeSetlistId());
+  protected readonly currentOrder = computed(() => (this.isActiveSetlist() ? this.activeSetlistIndex() : -1));
+  protected readonly nextOrder = computed(() => (this.isActiveSetlist() ? this.activeSetlistIndex() + 1 : -1));
 
   protected readonly nameControl = new FormControl('', {
     nonNullable: true,
@@ -50,13 +52,13 @@ export class SetlistDetailComponent {
       return;
     }
 
-    await this.storage.saveSetlist({
+    const updatedSetlist = await this.libraryStore.saveSetlist({
       ...setlist,
       name: this.nameControl.getRawValue().trim(),
     });
 
     this.nameControl.markAsPristine();
-    await this.refresh();
+    this.applyStoredSetlist(updatedSetlist);
   }
 
   protected async addSong(): Promise<void> {
@@ -67,9 +69,14 @@ export class SetlistDetailComponent {
       return;
     }
 
-    await this.storage.addSongToSetlist(setlist.id, songId);
+    const updatedSetlist = await this.libraryStore.addSongToSetlist(setlist.id, songId);
+
+    if (!updatedSetlist) {
+      return;
+    }
+
     this.addSongControl.reset('');
-    await this.refresh();
+    this.applyStoredSetlist(updatedSetlist);
   }
 
   protected async removeSong(index: number): Promise<void> {
@@ -79,8 +86,13 @@ export class SetlistDetailComponent {
       return;
     }
 
-    await this.storage.removeSongFromSetlist(setlist.id, index);
-    await this.refresh();
+    const updatedSetlist = await this.libraryStore.removeSongFromSetlist(setlist.id, index);
+
+    if (!updatedSetlist) {
+      return;
+    }
+
+    this.applyStoredSetlist(updatedSetlist);
   }
 
   protected async moveSong(previousIndex: number, currentIndex: number): Promise<void> {
@@ -111,14 +123,6 @@ export class SetlistDetailComponent {
     await this.router.navigateByUrl('/');
   }
 
-  protected isCurrentEntry(entry: ResolvedSetlistEntry): boolean {
-    return this.isActiveSetlist() && this.activeSetlistIndex() === entry.order;
-  }
-
-  protected isNextEntry(entry: ResolvedSetlistEntry): boolean {
-    return this.isActiveSetlist() && this.activeSetlistIndex() + 1 === entry.order;
-  }
-
   private announceMove(position: number): void {
     this.announcement.set(`Moved song to position ${position + 1}.`);
   }
@@ -136,9 +140,14 @@ export class SetlistDetailComponent {
       return;
     }
 
-    await this.storage.reorderSetlistSongs(setlist.id, songIds);
+    const updatedSetlist = await this.libraryStore.reorderSetlistSongs(setlist.id, songIds);
+
+    if (!updatedSetlist) {
+      return;
+    }
+
     await this.metronome.reorderSetlistSongs(setlist.id, songIds);
-    await this.refresh();
+    this.applyStoredSetlist(updatedSetlist);
   }
 
   private async refresh(): Promise<void> {
@@ -148,13 +157,21 @@ export class SetlistDetailComponent {
       return;
     }
 
-    const [setlist, songs] = await Promise.all([
-      this.storage.getResolvedSetlist(setlistId),
-      this.storage.listSongs(),
+    await this.libraryStore.ensureSongsLoaded();
+
+    const [storedSetlist, songs] = await Promise.all([
+      this.libraryStore.getSetlist(setlistId),
+      Promise.resolve(this.libraryStore.songs()),
     ]);
 
-    this.setlist.set(setlist);
     this.librarySongs.set(songs);
+    this.applyStoredSetlist(storedSetlist, songs);
+  }
+
+  private applyStoredSetlist(storedSetlist: Setlist | null, songs = this.librarySongs()): void {
+    const setlist = storedSetlist ? resolveSetlist(storedSetlist, songs) : null;
+
+    this.setlist.set(setlist);
 
     if (setlist && !this.nameControl.dirty) {
       this.nameControl.setValue(setlist.name);

@@ -12,6 +12,8 @@ import { normalizeMetronomeSettings } from '../../core/metronome/metronome.helpe
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SongEditorComponent {
+  private lastResetSongId: string | null | undefined;
+
   readonly song = input<Song | null>(null);
   readonly submitLabel = input('Save song');
 
@@ -59,6 +61,13 @@ export class SongEditorComponent {
   constructor() {
     effect(() => {
       const song = this.song();
+      const songId = song?.id ?? null;
+
+      if (songId === this.lastResetSongId) {
+        return;
+      }
+
+      this.lastResetSongId = songId;
 
       this.form.reset({
         name: song?.name ?? DEFAULT_SONG_DRAFT.name,

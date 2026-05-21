@@ -4,6 +4,10 @@ import { MetronomeService } from '../../core/metronome/metronome.service';
 import { BEATS_PER_BAR_OPTIONS, RHYTHM_OPTIONS, SUBDIVISION_OPTIONS, type RhythmOption, type SubdivisionOption } from '../../shared/models/song.model';
 import { MetronomeVisualizerComponent } from './metronome-visualizer.component';
 
+const RHYTHM_LABELS = new Map(RHYTHM_OPTIONS.map((option) => [option.value, option.label]));
+const SUBDIVISION_LABELS = new Map(SUBDIVISION_OPTIONS.map((option) => [option.value, option.label]));
+const SUBDIVISION_SHORT_LABELS = new Map(SUBDIVISION_OPTIONS.map((option) => [option.value, option.shortLabel]));
+
 @Component({
   selector: 'app-metronome-player',
   imports: [MetronomeVisualizerComponent],
@@ -19,18 +23,15 @@ export class MetronomePlayerComponent {
   protected readonly rhythmOptions = RHYTHM_OPTIONS;
   protected readonly audioSupportMessage = computed(() => this.metronome.audioSupportMessage());
   protected readonly beatMarkers = computed(() => Array.from({ length: this.metronome.beatsPerBar() }, (_, index) => index + 1));
+  protected readonly rhythmLabel = computed(() => RHYTHM_LABELS.get(this.metronome.rhythm()) ?? 'Straight');
+  protected readonly subdivisionLabel = computed(() => SUBDIVISION_LABELS.get(this.metronome.subdivision()) ?? 'Quarter');
+  protected readonly subdivisionShortLabel = computed(() => SUBDIVISION_SHORT_LABELS.get(this.metronome.subdivision()) ?? 'Quarter');
 
   protected readonly meterCaption = computed(() => {
-    const rhythmLabel = this.rhythmOptions.find((option) => option.value === this.metronome.rhythm())?.label ?? 'Straight';
-    const subdivisionLabel = this.subdivisionOptions.find((option) => option.value === this.metronome.subdivision())?.shortLabel ?? 'Quarter';
-
-    return `${this.metronome.beatsPerBar()}/4 · ${subdivisionLabel.toLowerCase()} · ${rhythmLabel.toLowerCase()}`;
+    return `${this.metronome.beatsPerBar()}/4 · ${this.subdivisionShortLabel().toLowerCase()} · ${this.rhythmLabel().toLowerCase()}`;
   });
   protected readonly settingsCaption = computed(() => {
-    const rhythmLabel = this.rhythmOptions.find((option) => option.value === this.metronome.rhythm())?.label ?? 'Straight';
-    const subdivisionLabel = this.subdivisionOptions.find((option) => option.value === this.metronome.subdivision())?.label ?? 'Quarter';
-
-    return `${this.metronome.beatsPerBar()}/4 · ${subdivisionLabel} · ${rhythmLabel}`;
+    return `${this.metronome.beatsPerBar()}/4 · ${this.subdivisionLabel()} · ${this.rhythmLabel()}`;
   });
 
   protected readonly currentSessionLabel = computed(() => this.metronome.activeSongName() ?? 'Live Session');

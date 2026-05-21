@@ -4,6 +4,17 @@ import { DEFAULT_APP_PREFERENCES, DEFAULT_SETLIST_DRAFT, type AppPreferences, ty
 import { DEFAULT_METRONOME_SETTINGS, type Song, type SongDraft } from '../models/song.model';
 import { asSongRecord, createId, createTimestamp, normalizeMetronomeSettings, resolveSetlist } from '../../core/metronome/metronome.helpers';
 
+type PersistenceFailureReason = 'unavailable' | 'blocked' | 'request-error' | 'transaction-error' | 'aborted' | 'invalid-state';
+
+type PersistenceResult<T> =
+  | { ok: true; value: T }
+  | { ok: false; reason: PersistenceFailureReason; retryable: boolean };
+
+type PersistenceRecordResult<T> =
+  | { ok: true; found: true; value: T }
+  | { ok: true; found: false }
+  | { ok: false; reason: PersistenceFailureReason; retryable: boolean };
+
 @Injectable({ providedIn: 'root' })
 export class LibraryStorageService {
   private readonly databaseName = 'metronome-pwa';
@@ -38,15 +49,15 @@ export class LibraryStorageService {
     return record;
   }
 
-  async deleteSong(songId: string): Promise<void> {
+  async deleteSong(songId: string): Promise<Setlist[]> {
     if (!songId) {
-      return;
+      return [];
     }
 
     await this.deleteRecord(this.songsStore, songId);
 
     const setlists = await this.listSetlists();
-    await Promise.all(
+    return await Promise.all(
       setlists
         .filter((setlist) => setlist.songIds.includes(songId))
         .map((setlist) =>
@@ -179,7 +190,7 @@ export class LibraryStorageService {
       lastSongName: storedPreferences.lastSongName ?? null,
       lastSetlistId: storedPreferences.lastSetlistId ?? null,
       lastSetlistName: storedPreferences.lastSetlistName ?? null,
-      activeSetlistIndex: Math.max(0, Math.floor(storedPreferences.activeSetlistIndex ?? 0)),
+      activeSetlistIndex: this.normalizeActiveSetlistIndex(storedPreferences.activeSetlistIndex),
     };
   }
 
@@ -190,7 +201,7 @@ export class LibraryStorageService {
       lastSongName: preferences.lastSongName ?? null,
       lastSetlistId: preferences.lastSetlistId ?? null,
       lastSetlistName: preferences.lastSetlistName ?? null,
-      activeSetlistIndex: Math.max(0, Math.floor(preferences.activeSetlistIndex ?? 0)),
+      activeSetlistIndex: this.normalizeActiveSetlistIndex(preferences.activeSetlistIndex),
     };
 
     await this.writeRecord(this.preferencesStore, {
@@ -209,14 +220,101 @@ export class LibraryStorageService {
     };
   }
 
-  private async openDatabase(): Promise<IDBDatabase | null> {
+  private normalizeActiveSetlistIndex(value: unknown): number {
+    const numericValue = Number(value);
+
+    if (!Number.isFinite(numericValue)) {
+      return 0;
+    }
+
+    return Math.max(0, Math.floor(numericValue));
+  }
+
+  private resetDatabaseConnection(): void {
+    this.databasePromise = null;
+  }
+
+  private success<T>(value: T): PersistenceResult<T> {
+    return { ok: true, value };
+  }
+
+  private failure<T>(reason: PersistenceFailureReason, retryable = false): PersistenceResult<T> {
+    return { ok: false, reason, retryable };
+  }
+
+  private foundRecord<T>(value: T): PersistenceRecordResult<T> {
+    return { ok: true, found: true, value };
+  }
+
+  private missingRecord<T>(): PersistenceRecordResult<T> {
+    return { ok: true, found: false };
+  }
+
+  private recordFailure<T>(reason: PersistenceFailureReason, retryable = false): PersistenceRecordResult<T> {
+    return { ok: false, reason, retryable };
+  }
+
+  private async resolveWithIndexedDbFallback<T>(
+    runIndexedDb: (database: IDBDatabase) => Promise<PersistenceResult<T>>,
+    runFallback: () => T | Promise<T>,
+    allowRetry = true,
+  ): Promise<T> {
+    const databaseResult = await this.openDatabase();
+
+    if (!databaseResult.ok) {
+      return await runFallback();
+    }
+
+    const operationResult = await runIndexedDb(databaseResult.value);
+
+    if (operationResult.ok) {
+      return operationResult.value;
+    }
+
+    if (allowRetry && operationResult.retryable) {
+      this.resetDatabaseConnection();
+      return this.resolveWithIndexedDbFallback(runIndexedDb, runFallback, false);
+    }
+
+    return await runFallback();
+  }
+
+  private async resolveRecordWithIndexedDbFallback<T>(
+    runIndexedDb: (database: IDBDatabase) => Promise<PersistenceRecordResult<T>>,
+    runFallback: () => T | null | Promise<T | null>,
+    allowRetry = true,
+  ): Promise<T | null> {
+    const databaseResult = await this.openDatabase();
+
+    if (!databaseResult.ok) {
+      return await runFallback();
+    }
+
+    const operationResult = await runIndexedDb(databaseResult.value);
+
+    if (operationResult.ok) {
+      return operationResult.found ? operationResult.value : null;
+    }
+
+    if (allowRetry && operationResult.retryable) {
+      this.resetDatabaseConnection();
+      return this.resolveRecordWithIndexedDbFallback(runIndexedDb, runFallback, false);
+    }
+
+    return await runFallback();
+  }
+
+  private async openDatabase(): Promise<PersistenceResult<IDBDatabase>> {
     if (typeof indexedDB === 'undefined') {
-      return null;
+      return this.failure('unavailable');
     }
 
     if (this.databasePromise) {
-      return this.databasePromise;
+      const database = await this.databasePromise;
+      return database ? this.success(database) : this.failure('unavailable');
     }
+
+    let failureReason: PersistenceFailureReason = 'request-error';
 
     this.databasePromise = new Promise((resolve) => {
       const request = indexedDB.open(this.databaseName, this.databaseVersion);
@@ -238,76 +336,169 @@ export class LibraryStorageService {
       };
 
       request.onsuccess = () => resolve(request.result);
-      request.onerror = () => resolve(null);
-      request.onblocked = () => resolve(null);
+      request.onerror = () => {
+        failureReason = 'request-error';
+        this.resetDatabaseConnection();
+        resolve(null);
+      };
+      request.onblocked = () => {
+        failureReason = 'blocked';
+        this.resetDatabaseConnection();
+        resolve(null);
+      };
     });
 
-    return this.databasePromise;
+    const database = await this.databasePromise;
+    return database ? this.success(database) : this.failure(failureReason);
   }
 
   private async readCollection<T extends { id: string }>(storeName: string): Promise<T[]> {
-    const database = await this.openDatabase();
-
-    if (!database) {
-      return this.readCollectionFromLocalStorage<T>(storeName);
-    }
-
-    return new Promise((resolve) => {
-      const transaction = database.transaction(storeName, 'readonly');
-      const request = transaction.objectStore(storeName).getAll();
-
-      request.onsuccess = () => resolve((request.result ?? []) as T[]);
-      request.onerror = () => resolve([]);
-    });
+    return this.resolveWithIndexedDbFallback(
+      (database) => this.readCollectionFromIndexedDb<T>(database, storeName),
+      () => this.readCollectionFromLocalStorage<T>(storeName),
+    );
   }
 
   private async readRecord<T>(storeName: string, recordId: string): Promise<T | null> {
-    const database = await this.openDatabase();
-
-    if (!database) {
-      return this.readRecordFromLocalStorage<T>(storeName, recordId);
-    }
-
-    return new Promise((resolve) => {
-      const transaction = database.transaction(storeName, 'readonly');
-      const request = transaction.objectStore(storeName).get(recordId);
-
-      request.onsuccess = () => resolve((request.result as T | undefined) ?? null);
-      request.onerror = () => resolve(null);
-    });
+    return this.resolveRecordWithIndexedDbFallback(
+      (database) => this.readRecordFromIndexedDb<T>(database, storeName, recordId),
+      () => this.readRecordFromLocalStorage<T>(storeName, recordId),
+    );
   }
 
   private async writeRecord<T extends { id: string }>(storeName: string, record: T): Promise<void> {
-    const database = await this.openDatabase();
-
-    if (!database) {
-      this.writeRecordToLocalStorage(storeName, record);
-      return;
-    }
-
-    await new Promise<void>((resolve) => {
-      const transaction = database.transaction(storeName, 'readwrite');
-      transaction.objectStore(storeName).put(record);
-      transaction.oncomplete = () => resolve();
-      transaction.onerror = () => resolve();
-      transaction.onabort = () => resolve();
-    });
+    await this.resolveWithIndexedDbFallback(
+      (database) => this.writeRecordToIndexedDb<T>(database, storeName, record),
+      () => {
+        this.writeRecordToLocalStorage(storeName, record);
+      },
+    );
   }
 
   private async deleteRecord(storeName: string, recordId: string): Promise<void> {
-    const database = await this.openDatabase();
+    await this.resolveWithIndexedDbFallback(
+      (database) => this.deleteRecordFromIndexedDb(database, storeName, recordId),
+      () => {
+        this.deleteRecordFromLocalStorage(storeName, recordId);
+      },
+    );
+  }
 
-    if (!database) {
-      this.deleteRecordFromLocalStorage(storeName, recordId);
-      return;
-    }
+  private async readCollectionFromIndexedDb<T extends { id: string }>(
+    database: IDBDatabase,
+    storeName: string,
+  ): Promise<PersistenceResult<T[]>> {
+    return new Promise((resolve) => {
+      let settled = false;
+      const finish = (result: PersistenceResult<T[]>) => {
+        if (settled) {
+          return;
+        }
 
-    await new Promise<void>((resolve) => {
-      const transaction = database.transaction(storeName, 'readwrite');
-      transaction.objectStore(storeName).delete(recordId);
-      transaction.oncomplete = () => resolve();
-      transaction.onerror = () => resolve();
-      transaction.onabort = () => resolve();
+        settled = true;
+        resolve(result);
+      };
+
+      try {
+        const transaction = database.transaction(storeName, 'readonly');
+        const request = transaction.objectStore(storeName).getAll();
+
+        request.onsuccess = () => finish(this.success((request.result ?? []) as T[]));
+        request.onerror = () => finish(this.failure('request-error', true));
+        transaction.onerror = () => finish(this.failure('transaction-error', true));
+        transaction.onabort = () => finish(this.failure('aborted', true));
+      } catch {
+        finish(this.failure('invalid-state', true));
+      }
+    });
+  }
+
+  private async readRecordFromIndexedDb<T>(
+    database: IDBDatabase,
+    storeName: string,
+    recordId: string,
+  ): Promise<PersistenceRecordResult<T>> {
+    return new Promise((resolve) => {
+      let settled = false;
+      const finish = (result: PersistenceRecordResult<T>) => {
+        if (settled) {
+          return;
+        }
+
+        settled = true;
+        resolve(result);
+      };
+
+      try {
+        const transaction = database.transaction(storeName, 'readonly');
+        const request = transaction.objectStore(storeName).get(recordId);
+
+        request.onsuccess = () => {
+          const result = request.result as T | undefined;
+          finish(result === undefined ? this.missingRecord<T>() : this.foundRecord(result));
+        };
+        request.onerror = () => finish(this.recordFailure('request-error', true));
+        transaction.onerror = () => finish(this.recordFailure('transaction-error', true));
+        transaction.onabort = () => finish(this.recordFailure('aborted', true));
+      } catch {
+        finish(this.recordFailure('invalid-state', true));
+      }
+    });
+  }
+
+  private async writeRecordToIndexedDb<T extends { id: string }>(
+    database: IDBDatabase,
+    storeName: string,
+    record: T,
+  ): Promise<PersistenceResult<void>> {
+    return new Promise((resolve) => {
+      let settled = false;
+      const finish = (result: PersistenceResult<void>) => {
+        if (settled) {
+          return;
+        }
+
+        settled = true;
+        resolve(result);
+      };
+
+      try {
+        const transaction = database.transaction(storeName, 'readwrite');
+        transaction.objectStore(storeName).put(record);
+        transaction.oncomplete = () => finish(this.success(undefined));
+        transaction.onerror = () => finish(this.failure('transaction-error', true));
+        transaction.onabort = () => finish(this.failure('aborted', true));
+      } catch {
+        finish(this.failure('invalid-state', true));
+      }
+    });
+  }
+
+  private async deleteRecordFromIndexedDb(
+    database: IDBDatabase,
+    storeName: string,
+    recordId: string,
+  ): Promise<PersistenceResult<void>> {
+    return new Promise((resolve) => {
+      let settled = false;
+      const finish = (result: PersistenceResult<void>) => {
+        if (settled) {
+          return;
+        }
+
+        settled = true;
+        resolve(result);
+      };
+
+      try {
+        const transaction = database.transaction(storeName, 'readwrite');
+        transaction.objectStore(storeName).delete(recordId);
+        transaction.oncomplete = () => finish(this.success(undefined));
+        transaction.onerror = () => finish(this.failure('transaction-error', true));
+        transaction.onabort = () => finish(this.failure('aborted', true));
+      } catch {
+        finish(this.failure('invalid-state', true));
+      }
     });
   }
 
@@ -323,7 +514,8 @@ export class LibraryStorageService {
     }
 
     try {
-      return JSON.parse(rawValue) as T[];
+      const parsedValue = JSON.parse(rawValue) as unknown;
+      return Array.isArray(parsedValue) ? (parsedValue as T[]) : [];
     } catch {
       return [];
     }
