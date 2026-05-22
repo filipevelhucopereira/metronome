@@ -8,9 +8,9 @@ export interface ClickVoiceOptions {
 }
 
 const CLICK_PROFILE: Record<ClickEmphasis, { frequency: number; gain: number; decay: number; overtone: number; overtoneGain: number }> = {
-  bar: { frequency: 1760, gain: 0.55, decay: 0.052, overtone: 1.85, overtoneGain: 0.34 },
-  beat: { frequency: 1320, gain: 0.38, decay: 0.044, overtone: 1.6, overtoneGain: 0.24 },
-  subdivision: { frequency: 980, gain: 0.28, decay: 0.034, overtone: 1.45, overtoneGain: 0.16 },
+  bar: { frequency: 1760, gain: 0.99, decay: 0.052, overtone: 1.85, overtoneGain: 0.34 },
+  beat: { frequency: 1320, gain: 0.65, decay: 0.044, overtone: 1.6, overtoneGain: 0.24 },
+  subdivision: { frequency: 980, gain: 0.5, decay: 0.034, overtone: 1.45, overtoneGain: 0.16 },
 };
 
 const BUFFER_PADDING_SECONDS = 0.02;
