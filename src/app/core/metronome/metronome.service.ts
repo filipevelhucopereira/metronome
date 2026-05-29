@@ -95,6 +95,7 @@ export class MetronomeService {
   );
 
   readonly pulsesPerBeat = computed(() => pulsesPerBeatForSettings(this.currentSettings()));
+  readonly canRetreatSetlist = computed(() => this.activeSetlistIndex() > 0);
   readonly canAdvanceSetlist = computed(() => this.activeSetlistSongIds().length > this.activeSetlistIndex() + 1);
   readonly audioSupportMessage = computed(() => {
     const activationError = this.audioActivationError();
@@ -296,6 +297,14 @@ export class MetronomeService {
     }
 
     await this.startSetlist(this.activeSetlistId()!, this.activeSetlistIndex() + 1);
+  }
+
+  async previousSong(): Promise<void> {
+    if (!this.activeSetlistId() || !this.canRetreatSetlist()) {
+      return;
+    }
+
+    await this.startSetlist(this.activeSetlistId()!, this.activeSetlistIndex() - 1);
   }
 
   async reorderSetlistSongs(setlistId: string, songIds: string[]): Promise<void> {

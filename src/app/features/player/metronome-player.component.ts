@@ -54,7 +54,7 @@ export class MetronomePlayerComponent {
 
   protected togglePlayback(): void {
     if (this.metronome.isPlaying()) {
-      this.metronome.pause();
+      this.metronome.stop();
       return;
     }
 
@@ -89,6 +89,10 @@ export class MetronomePlayerComponent {
 
   protected tapTempo(): void {
     this.metronome.tapTempo();
+  }
+
+  protected previousSong(): void {
+    void this.metronome.previousSong();
   }
 
   protected nextSong(): void {

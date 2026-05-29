@@ -309,6 +309,102 @@ describe('MetronomeService', () => {
     expect(service.activeSetlistId()).toBe('set-1');
   });
 
+  it('does nothing when moving to the previous song without an active setlist', async () => {
+    const storage = createStorageStub();
+    const service = createService(storage);
+
+    await service.previousSong();
+
+    expect(storage.getResolvedSetlist).not.toHaveBeenCalled();
+  });
+
+  it('does nothing when moving to the previous song at the first setlist entry', async () => {
+    const storage = createStorageStub();
+    const service = createService(storage);
+
+    service.activeSetlistId.set('set-1');
+    service.activeSetlistIndex.set(0);
+
+    await service.previousSong();
+
+    expect(service.canRetreatSetlist()).toBe(false);
+    expect(storage.getResolvedSetlist).not.toHaveBeenCalled();
+  });
+
+  it('loads the previous song within the active setlist', async () => {
+    vi.useFakeTimers();
+
+    const storage = createStorageStub();
+    storage.getResolvedSetlist.mockResolvedValue({
+      id: 'set-1',
+      name: 'Warmup',
+      songIds: ['song-1', 'song-2'],
+      createdAt: '2026-05-21T12:00:00.000Z',
+      updatedAt: '2026-05-21T12:00:00.000Z',
+      missingSongIds: [],
+      entries: [
+        {
+          id: 'entry-1',
+          songId: 'song-1',
+          order: 0,
+          song: {
+            id: 'song-1',
+            name: 'Warmup Click',
+            tempo: 144,
+            beatsPerBar: 3,
+            subdivision: 2,
+            rhythm: 'swing',
+            volume: 0.66,
+            createdAt: '2026-05-21T12:00:00.000Z',
+            updatedAt: '2026-05-21T12:00:00.000Z',
+          },
+        },
+        {
+          id: 'entry-2',
+          songId: 'song-2',
+          order: 1,
+          song: {
+            id: 'song-2',
+            name: 'Bridge Count',
+            tempo: 156,
+            beatsPerBar: 5,
+            subdivision: 1,
+            rhythm: 'straight',
+            volume: 0.61,
+            createdAt: '2026-05-21T12:00:00.000Z',
+            updatedAt: '2026-05-21T12:00:00.000Z',
+          },
+        },
+      ],
+    });
+
+    const service = createService(storage);
+
+    await service.startSetlist('set-1', 1);
+    await service.previousSong();
+    await vi.runAllTimersAsync();
+
+    expect(storage.getResolvedSetlist).toHaveBeenCalledTimes(2);
+    expect(storage.savePreferences).toHaveBeenCalledTimes(1);
+    expect(storage.savePreferences).toHaveBeenCalledWith({
+      lastTransport: {
+        tempo: 144,
+        beatsPerBar: 3,
+        subdivision: 2,
+        rhythm: 'swing',
+        volume: 0.66,
+      },
+      lastSongId: 'song-1',
+      lastSongName: 'Warmup Click',
+      lastSetlistId: 'set-1',
+      lastSetlistName: 'Warmup',
+      activeSetlistIndex: 0,
+    });
+    expect(service.activeSongId()).toBe('song-1');
+    expect(service.activeSongName()).toBe('Warmup Click');
+    expect(service.activeSetlistIndex()).toBe(0);
+  });
+
   it('coalesces rapid preference updates into one save with the latest snapshot', async () => {
     vi.useFakeTimers();
 

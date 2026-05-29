@@ -80,9 +80,17 @@
 
       <div class="transport-buttons">
         <button type="button" class="primary-button" (click)="togglePlayback()">
-          {{ metronome.isPlaying() ? 'Pause' : 'Play' }}
+          {{ metronome.isPlaying() ? 'Stop' : 'Play' }}
         </button>
         <button type="button" class="ghost-button" (click)="tapTempo()">Tap</button>
+        <button
+          type="button"
+          class="ghost-button"
+          (click)="previousSong()"
+          [disabled]="!metronome.canRetreatSetlist()"
+        >
+          Previous
+        </button>
         <button
           type="button"
           class="ghost-button"
